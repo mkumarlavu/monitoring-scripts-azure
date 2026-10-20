@@ -1,0 +1,8 @@
+{
+  "DefaultService": "doc-extraction",
+  "CollectPipelineExecution": true,
+  "PublishHealth": true,
+  "WorkflowMappings": {},
+  "StageMappings": {},
+  "DeploymentEnvironments": {}
+}

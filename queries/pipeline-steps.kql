@@ -1,0 +1,9 @@
+// Raw step conclusions are retained, including continue-on-error failures.
+// A failing step does not necessarily mean the job or deployment failed.
+NWBPipelineExecution_CL
+| where RecordType == 'Step'
+| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt, JobId, StepNumber
+| summarize Executions=count(), Failed=countif(Conclusion == 'failure'),
+    Skipped=countif(Conclusion == 'skipped'),
+    DurationP95Seconds=percentile(DurationSeconds, 95)
+    by PipelineName, JobName, StepName, Stage, StageMappingKnown

@@ -1,0 +1,175 @@
+INSTALLATION AND FIRST RUN
+
+1. KEEP THE EXISTING INFRASTRUCTURE
+Subscription: NWPROD-SUB (18af3db6-624c-4522-9319-35501eb3fac0)
+Resource group: prd-cicdobservability-rg-eus2
+Workspace: prd-cicdobservability-law-eus2
+DCE: prd-cicdobservability-dce-eus2
+Managed identity: prd-cicdobservability-collector-mi-eus2
+Client ID: eb7f1418-0c89-46dc-b309-e3a0b7c941fd
+
+The existing workflow/deployment/change/incident tables remain in use. This update
+adds NWBPipelineExecution_CL and NWBCollectorHealth_CL. One additional DCR routes
+the two new streams. Application Insights is not required for this CI/CD update.
+
+2. REVIEW AND CREATE THE TWO NEW TABLES AND DCR
+In Azure, use Deploy a custom template > Build your own template in the editor.
+Load infra/execution-health.json. Select the subscription/resource group above.
+Keep location eastus2 and the existing workspace name. Supply the existing DCE
+RESOURCE ID (Azure DCE > JSON View > id), not its ingestion URL.
+Review retention with the platform owner; this template defaults to 30 days.
+Review + create, then wait for deployment success.
+
+This template creates:
+  NWBPipelineExecution_CL
+  NWBCollectorHealth_CL
+  prd-cicdobservability-execution-health-dcr-eus2
+It does not create or modify the existing workspace, DCE, managed identity or
+four original rules. Use the same resource group as the existing workspace.
+
+Open the NEW DCR > JSON View. Record properties.immutableId. Its value is used for
+BOTH AZURE_EXECUTION_DCR_IMMUTABLE_ID and AZURE_HEALTH_DCR_IMMUTABLE_ID because the
+new DCR has two streams. Do not use the resource ID in those variables.
+
+3. ASSIGN ACCESS TO THE NEW DCR
+New DCR > Access control (IAM) > Add role assignment.
+Role: Monitoring Metrics Publisher.
+Assign access to: Managed identity.
+Select prd-cicdobservability-collector-mi-eus2 > Review + assign.
+An administrator must do this if Add role assignment is unavailable.
+The four previously assigned DCR roles do not cover this additional DCR.
+
+4. CONFIRM RUNNER AND FEDERATION
+The shared screenshot showed Windows x64 labels:
+  ["self-hosted","Windows","X64"]
+Confirm the application repository is allowed to use that runner/group.
+The runner requires PowerShell 7 (pwsh), Git, Azure CLI, approved actions/checkout
+and azure/login actions, and network access to the GitHub API/OIDC provider,
+Microsoft Entra and the exact DCE ingestion endpoint.
+The templates use checkout@v4 and azure/login@v2. Apply the bank's approved action
+versions/commit pins. A runner shared with untrusted code needs platform review.
+
+The existing DCR role assignments grant ingestion access; they do not themselves
+configure GitHub sign-in. Confirm the identity's federated credential trusts the
+actual GitHub issuer and the subject for environment cicd-observability.
+For this enterprise hostname, do not guess the issuer. The collector manual
+show_identity option prints only issuer, subject and audience for admin review.
+Audience in these templates: api://AzureADTokenExchange.
+Both workflows use the same monitoring environment and federation identity.
+
+5. INSTALL FILES IN THE APPLICATION REPOSITORY
+Use a normal reviewed branch/PR in northwest/doc_extraction.
+Copy the ENTIRE scripts/nwb-observability directory to that same repository path.
+Copy config/nwb-observability/collector.json to that same repository path.
+Copy these templates to the following destination names:
+  templates/github/nwb-cicd-collector.yml
+    -> .github/workflows/nwb-cicd-collector.yml
+  templates/github/nwb-collector-health.yml
+    -> .github/workflows/nwb-collector-health.yml
+Merge the reviewed files to the default branch. A workflow_dispatch or
+workflow_run subscription needs the workflow present on the default branch.
+Infra, docs, tests and query files can remain in this source package; runtime jobs
+need only the scripts, configuration and two workflow files above.
+Replace an earlier collector with this version rather than leaving two active
+collectors publishing the same application events.
+
+6. SET VARIABLES
+Repository > Settings > Secrets and variables > Actions > Variables:
+  CICD_MONITOR_RUNNER_LABELS       ["self-hosted","Windows","X64"]
+  CICD_MONITOR_AUTOMATION_ENABLED  false initially
+  CICD_MONITOR_AUTO_PUBLISH        false initially
+  CICD_MONITOR_HEALTH_ENABLED      false initially
+  CICD_MONITOR_HEALTH_PUBLISH      false initially
+Keep flags and runner labels at repository level so job scheduling can read them.
+
+Repository > Settings > Environments > cicd-observability > Environment variables:
+  AZURE_CLIENT_ID                   Managed identity CLIENT ID listed above
+  AZURE_TENANT_ID                   Confirm from the identity's tenant
+  AZURE_SUBSCRIPTION_ID             Monitoring subscription ID listed above
+  AZURE_DCE_LOGS_ENDPOINT           Exact DCE > Overview > Logs Ingestion URL
+  AZURE_WORKFLOW_DCR_IMMUTABLE_ID   Existing workflows DCR properties.immutableId
+  AZURE_DEPLOYMENT_DCR_IMMUTABLE_ID Existing deployments DCR properties.immutableId
+  AZURE_EXECUTION_DCR_IMMUTABLE_ID  New execution/health DCR properties.immutableId
+  AZURE_HEALTH_DCR_IMMUTABLE_ID     Same NEW immutable ID
+
+Do not replace application deployment identity variables at repository scope.
+The monitoring environment values take precedence for these monitoring jobs.
+Ask the repository admin if Environments is not visible. Restrict the environment
+to the actual default branch. Review its approval policy: manual approvals can
+delay both scheduled health checks and automatic collection.
+environment.deployment: false avoids creating monitoring deployments. Confirm
+support and compatibility with the bank's environment protection settings.
+GitHub's built-in token is passed automatically; do not add a personal access token.
+
+7. REVIEW CONFIGURATION
+collector.json initially collects every completed source workflow as unclassified
+until its numeric workflow ID has a reviewed WorkflowMappings entry, for example:
+  "42": {"Service":"doc-extraction","Environment":"development",
+         "IsDeploymentPipeline":false}
+42 is illustrative, not an actual confirmed workflow ID.
+StageMappings is keyed by the same numeric workflow ID. Use exact job names and
+optional exact step names as in config/stage-mapping-example.json. Matrix job
+names may include values in parentheses. Unmapped rows are still collected.
+Step mappings override job mappings. No stage is inferred from a tool name.
+
+DeploymentEnvironments must be agreed with Chinchia. An illustrative entry is:
+  "development": {"Service":"doc-extraction","Environment":"development",
+                  "Production":false,"SuccessMeansDeployed":true}
+Set SuccessMeansDeployed true only after confirming linked GitHub deployment
+success is emitted after the actual deployment completes. A build finishing
+successfully is not proof of a deployment. Do not label non-production as production.
+
+8. PREVIEW WITHOUT AZURE WRITES
+Actions > NWB CI/CD collector > Run workflow.
+Use a real completed application run ID, its attempt number, publish=false.
+Review workflow/job/step records and source links. Verify cancelled, failed,
+skipped and matrix cases. Never check out the triggering run's code in the collector.
+Actions > NWB collector health > Run workflow > publish=false.
+Confirm it can read collector outcomes and produces a heartbeat preview.
+An empty deployment result is expected until confirmed deployment evidence exists.
+
+9. VERIFY INGESTION
+Run the collector manually with publish=true for the agreed test run.
+Run the health workflow manually with publish=true.
+After ingestion, query all applicable tables in Workspace > Logs:
+  NWBPipelineExecution_CL | take 20
+  NWBCollectorHealth_CL | take 20
+Use verify-workflow.kql and verify-deployments.kql for the original tables.
+Use a suitable time range; event observation timestamps are UTC.
+Confirm row counts, correct run attempts, null timings and stage classifications.
+Re-run the test and check the supplied queries deduplicate observations.
+An accepted ingestion request alone does not prove the table rows are queryable.
+
+10. ENABLE AUTOMATIC COLLECTION AND WATCHDOG
+After successful previews and ingestion tests, set all four flags in step 6 true.
+The collector observes completed workflows in THIS repository. Monitoring
+workflows are excluded; skipped trigger entries may still appear in Actions.
+The watchdog requests a run every 15 minutes. GitHub scheduling can be delayed;
+the draft missing-heartbeat threshold is 60 minutes and must be tested locally.
+Verify the first automatic run and at least two scheduled heartbeats.
+
+11. PREPARE ALERTS
+Read METRICS-AND-ALERTS.txt. Load infra/alerts-disabled.json through Azure custom
+template deployment only after the tables exist. Supply workspaceResourceId.
+Supply approved Action Group resource IDs and reviewed selectedWorkflowPaths
+(for example .github/workflows/actual-approved-file.yml). Empty paths match none.
+All three resources are disabled even if an action group is supplied.
+Confirm Azure validates each query. Review threshold, severity and destination;
+then enable one rule at a time in Monitor > Alerts > Alert rules.
+Test heartbeat loss, a controlled collector failure, a selected workflow failure,
+and recovery using approved test workflows. Check duplicates and notification load.
+Azure auto-resolution means the alert condition cleared; it does not prove the
+underlying pipeline was repaired. Failures age out of the one-hour observation window.
+Changing queries/*.kql requires regenerating alerts-disabled.json with
+infra/Build-AlertTemplate.ps1 before redeployment.
+
+12. SERVICENOW IS A LATER INTEGRATION STEP
+No ServiceNow ticket is sent by this package. Agree severity, persistence,
+assignment group, deduplication key, authentication and resolution policy before
+connecting an approved Action Group/integration. CI failures do not automatically
+qualify as bank service incidents. Test creation, updates and recovery without
+creating repeated tickets for the same issue.
+
+ROLLBACK
+Set the four automation/publish flags false and disable any enabled alert rules.
+Manual runs remain available with publish=false. Do not delete historical tables.

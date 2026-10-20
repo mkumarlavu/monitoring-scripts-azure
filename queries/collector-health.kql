@@ -1,0 +1,9 @@
+NWBCollectorHealth_CL
+| where TimeGenerated > ago(24h)
+| summarize arg_max(UpdatedAt, *) by Repository, Collector, CheckId
+| summarize LastObservation=max(TimeGenerated),
+    Failures=countif(Outcome == 'failure'), Observations=count()
+    by Repository, Collector, Operation
+| extend MinutesSinceLastObservation=datetime_diff('minute', now(), LastObservation)
+// collector-run observations may repeat across watchdog runs; this count is
+// observations, not unique incidents. Use alert-collector-failed for run deduplication.

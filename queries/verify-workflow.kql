@@ -1,0 +1,12 @@
+// Set the UI time range to include the collection time. Replace the actual run ID.
+// TimeGenerated is collection time; StartedAt/CompletedAt are the job execution window.
+NWBWorkflowRuns_CL
+| where Repository == "northwest/doc_extraction"
+| where RunId == "REPLACE_WITH_ACTUAL_RUN_ID"
+| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt
+| project TimeGenerated, PipelineName, RunId, RunAttempt, Conclusion,
+          StartedAt, CompletedAt, DurationSeconds, QueueSeconds,
+          Environment, IsDeploymentPipeline, RunUrl
+
+// Use the same latest-observation grouping in dashboard counts.
+// QueueSeconds is null in this starter; do not replace unknown timing with zero.

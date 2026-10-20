@@ -1,0 +1,422 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "defaultValue": "prd-cicdobservability-law-eus2"
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "eastus2"
+    },
+    "dcrName": {
+      "type": "string",
+      "defaultValue": "prd-cicdobservability-execution-health-dcr-eus2"
+    },
+    "dataCollectionEndpointId": {
+      "type": "string"
+    },
+    "retentionInDays": {
+      "type": "int",
+      "defaultValue": 30,
+      "minValue": 30,
+      "maxValue": 730
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/tables",
+      "apiVersion": "2022-10-01",
+      "name": "[format('{0}/NWBPipelineExecution_CL', parameters('workspaceName'))]",
+      "properties": {
+        "plan": "Analytics",
+        "retentionInDays": "[parameters('retentionInDays')]",
+        "totalRetentionInDays": "[parameters('retentionInDays')]",
+        "schema": {
+          "name": "NWBPipelineExecution_CL",
+          "columns": [
+            {
+              "name": "TimeGenerated",
+              "type": "datetime"
+            },
+            {
+              "name": "UpdatedAt",
+              "type": "datetime"
+            },
+            {
+              "name": "Repository",
+              "type": "string"
+            },
+            {
+              "name": "Service",
+              "type": "string"
+            },
+            {
+              "name": "Environment",
+              "type": "string"
+            },
+            {
+              "name": "WorkflowId",
+              "type": "string"
+            },
+            {
+              "name": "WorkflowPath",
+              "type": "string"
+            },
+            {
+              "name": "PipelineName",
+              "type": "string"
+            },
+            {
+              "name": "RunId",
+              "type": "string"
+            },
+            {
+              "name": "RunAttempt",
+              "type": "int"
+            },
+            {
+              "name": "JobId",
+              "type": "string"
+            },
+            {
+              "name": "RecordType",
+              "type": "string"
+            },
+            {
+              "name": "StepNumber",
+              "type": "int"
+            },
+            {
+              "name": "JobName",
+              "type": "string"
+            },
+            {
+              "name": "StepName",
+              "type": "string"
+            },
+            {
+              "name": "Stage",
+              "type": "string"
+            },
+            {
+              "name": "StageMappingKnown",
+              "type": "boolean"
+            },
+            {
+              "name": "Status",
+              "type": "string"
+            },
+            {
+              "name": "Conclusion",
+              "type": "string"
+            },
+            {
+              "name": "StartedAt",
+              "type": "datetime"
+            },
+            {
+              "name": "CompletedAt",
+              "type": "datetime"
+            },
+            {
+              "name": "DurationSeconds",
+              "type": "int"
+            },
+            {
+              "name": "RunnerName",
+              "type": "string"
+            },
+            {
+              "name": "RunnerGroupName",
+              "type": "string"
+            },
+            {
+              "name": "CommitSha",
+              "type": "string"
+            },
+            {
+              "name": "RunUrl",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/tables",
+      "apiVersion": "2022-10-01",
+      "name": "[format('{0}/NWBCollectorHealth_CL', parameters('workspaceName'))]",
+      "properties": {
+        "plan": "Analytics",
+        "retentionInDays": "[parameters('retentionInDays')]",
+        "totalRetentionInDays": "[parameters('retentionInDays')]",
+        "schema": {
+          "name": "NWBCollectorHealth_CL",
+          "columns": [
+            {
+              "name": "TimeGenerated",
+              "type": "datetime"
+            },
+            {
+              "name": "UpdatedAt",
+              "type": "datetime"
+            },
+            {
+              "name": "Repository",
+              "type": "string"
+            },
+            {
+              "name": "Collector",
+              "type": "string"
+            },
+            {
+              "name": "Operation",
+              "type": "string"
+            },
+            {
+              "name": "Outcome",
+              "type": "string"
+            },
+            {
+              "name": "CheckId",
+              "type": "string"
+            },
+            {
+              "name": "SourceRunId",
+              "type": "string"
+            },
+            {
+              "name": "SourceRunAttempt",
+              "type": "int"
+            },
+            {
+              "name": "SourceUpdatedAt",
+              "type": "datetime"
+            },
+            {
+              "name": "CollectorRunId",
+              "type": "string"
+            },
+            {
+              "name": "DetailCode",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionRules",
+      "apiVersion": "2024-03-11",
+      "name": "[parameters('dcrName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('workspaceName'), 'NWBPipelineExecution_CL')]",
+        "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('workspaceName'), 'NWBCollectorHealth_CL')]"
+      ],
+      "properties": {
+        "dataCollectionEndpointId": "[parameters('dataCollectionEndpointId')]",
+        "streamDeclarations": {
+          "Custom-NWBPipelineExecution_CL": {
+            "columns": [
+              {
+                "name": "TimeGenerated",
+                "type": "datetime"
+              },
+              {
+                "name": "UpdatedAt",
+                "type": "datetime"
+              },
+              {
+                "name": "Repository",
+                "type": "string"
+              },
+              {
+                "name": "Service",
+                "type": "string"
+              },
+              {
+                "name": "Environment",
+                "type": "string"
+              },
+              {
+                "name": "WorkflowId",
+                "type": "string"
+              },
+              {
+                "name": "WorkflowPath",
+                "type": "string"
+              },
+              {
+                "name": "PipelineName",
+                "type": "string"
+              },
+              {
+                "name": "RunId",
+                "type": "string"
+              },
+              {
+                "name": "RunAttempt",
+                "type": "int"
+              },
+              {
+                "name": "JobId",
+                "type": "string"
+              },
+              {
+                "name": "RecordType",
+                "type": "string"
+              },
+              {
+                "name": "StepNumber",
+                "type": "int"
+              },
+              {
+                "name": "JobName",
+                "type": "string"
+              },
+              {
+                "name": "StepName",
+                "type": "string"
+              },
+              {
+                "name": "Stage",
+                "type": "string"
+              },
+              {
+                "name": "StageMappingKnown",
+                "type": "boolean"
+              },
+              {
+                "name": "Status",
+                "type": "string"
+              },
+              {
+                "name": "Conclusion",
+                "type": "string"
+              },
+              {
+                "name": "StartedAt",
+                "type": "datetime"
+              },
+              {
+                "name": "CompletedAt",
+                "type": "datetime"
+              },
+              {
+                "name": "DurationSeconds",
+                "type": "int"
+              },
+              {
+                "name": "RunnerName",
+                "type": "string"
+              },
+              {
+                "name": "RunnerGroupName",
+                "type": "string"
+              },
+              {
+                "name": "CommitSha",
+                "type": "string"
+              },
+              {
+                "name": "RunUrl",
+                "type": "string"
+              }
+            ]
+          },
+          "Custom-NWBCollectorHealth_CL": {
+            "columns": [
+              {
+                "name": "TimeGenerated",
+                "type": "datetime"
+              },
+              {
+                "name": "UpdatedAt",
+                "type": "datetime"
+              },
+              {
+                "name": "Repository",
+                "type": "string"
+              },
+              {
+                "name": "Collector",
+                "type": "string"
+              },
+              {
+                "name": "Operation",
+                "type": "string"
+              },
+              {
+                "name": "Outcome",
+                "type": "string"
+              },
+              {
+                "name": "CheckId",
+                "type": "string"
+              },
+              {
+                "name": "SourceRunId",
+                "type": "string"
+              },
+              {
+                "name": "SourceRunAttempt",
+                "type": "int"
+              },
+              {
+                "name": "SourceUpdatedAt",
+                "type": "datetime"
+              },
+              {
+                "name": "CollectorRunId",
+                "type": "string"
+              },
+              {
+                "name": "DetailCode",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "destinations": {
+          "logAnalytics": [
+            {
+              "name": "workspace",
+              "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
+            }
+          ]
+        },
+        "dataFlows": [
+          {
+            "streams": [
+              "Custom-NWBPipelineExecution_CL"
+            ],
+            "destinations": [
+              "workspace"
+            ],
+            "transformKql": "source",
+            "outputStream": "Custom-NWBPipelineExecution_CL"
+          },
+          {
+            "streams": [
+              "Custom-NWBCollectorHealth_CL"
+            ],
+            "destinations": [
+              "workspace"
+            ],
+            "transformKql": "source",
+            "outputStream": "Custom-NWBCollectorHealth_CL"
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "dcrImmutableId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Insights/dataCollectionRules', parameters('dcrName')), '2024-03-11').immutableId]"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+// Re-observation of an old run must not make it a new failure.
+// The most recent rerun attempt takes precedence over earlier failures.
+NWBCollectorHealth_CL
+| where TimeGenerated > ago(2h) and Operation == 'collector-run'
+| summarize arg_max(UpdatedAt, *) by Repository, Collector, SourceRunId, SourceRunAttempt
+| summarize arg_max(SourceRunAttempt, *) by Repository, Collector, SourceRunId
+| where SourceUpdatedAt > ago(1h) and Outcome == 'failure'
+| project Repository, Collector, SourceRunId, SourceRunAttempt, DetailCode, SourceUpdatedAt

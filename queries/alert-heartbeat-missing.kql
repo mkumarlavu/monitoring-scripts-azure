@@ -1,0 +1,12 @@
+// Expected row ensures this returns an alert row even when the table is empty.
+// Enable only after the scheduled watchdog has published successfully.
+let expected = datatable(Repository:string, Collector:string)
+    ['northwest/doc_extraction', 'nwb-cicd'];
+expected
+| join kind=leftouter (
+    NWBCollectorHealth_CL
+    | where TimeGenerated > ago(2h) and Operation == 'heartbeat' and Outcome == 'success'
+    | summarize LastHeartbeat=max(TimeGenerated) by Repository, Collector
+) on Repository, Collector
+| where isnull(LastHeartbeat) or LastHeartbeat < ago(60m)
+| project Repository, Collector, LastHeartbeat

@@ -1,0 +1,103 @@
+METRICS, DASHBOARDS AND REMAINING DEPENDENCIES
+
+CI/CD MONITORING ONLY
+This work observes software delivery. Application request latency, customer
+transactions, browser errors and Application Insights instrumentation are outside
+this update. For example, a banking document-processing release blocked by a
+failed security scan is a CI/CD event; a customer's document processing timeout
+after release belongs to application monitoring.
+
+DASHBOARD QUERIES INCLUDED
+Workflow level: outcome, run attempt, execution span, commit and source link.
+Job level: counts by conclusion, matrix jobs, p50/p95 duration, runner attribution.
+Step level: outcome, skipped/failing steps, p95 duration, raw step name.
+Stage coverage: percentage of steps with reviewed stage mapping, unmapped count.
+Deployment evidence: confirmed deployments by service/environment and deployment ID.
+Monitoring health: collection component outcome, watchdog heartbeat, failed
+collector run observations, time since heartbeat.
+These are KQL building blocks; an Azure Workbook/dashboard has not been deployed.
+Possible tiles: failed workflow attempts, retries, failed jobs, slowest jobs,
+slowest steps, skipped steps, unmapped stages, confirmed deployments, last
+heartbeat and collector failures. Compare equivalent pipelines and periods.
+
+METRIC DEFINITIONS AND LIMITS
+- Job and step durations use their recorded start/end timestamps. Missing timing
+  and skipped execution remain null, not zero. Workflow duration is the span from
+  first executed job start to last executed job completion, including gaps.
+- Job and step rows are different grains. Do not sum both as one execution count.
+  Parallel job/step durations cannot be summed to get wall-clock pipeline latency.
+- Each attempt remains separately identifiable. Dashboard queries retain attempts;
+  alert queries prefer the latest observed attempt for a run. Historical failed
+  attempts remain useful for retry analysis but are not distinct deployments.
+- Step failure can coexist with job success (continue-on-error). No generic
+  security incident or deployment-failure classification is inferred from it.
+- Queue time, live running/queued status, runner CPU/memory, exact stage wall-clock
+  durations, coverage, test totals and security findings are not collected here.
+- Collection is append-only. Retries can produce duplicates; queries deduplicate
+  by repository/run/attempt/job/step as appropriate. This is not exactly-once delivery.
+- Collection is triggered after completion. Source API/ingestion failures fail the
+  collector and are visible to the watchdog. Manual replay is available. Durable
+  reconciliation/backfill and guaranteed delivery are future work.
+- Jobs and API list reads are paginated with limits. The watchdog scans completed
+  collector history up to 100 pages and reports updates within two hours. It fails
+  on the configured limit; large histories need a future cursor/reconciliation design.
+- Heartbeat success confirms watchdog API access and its health-stream write.
+  It does not certify completeness of every application's data or other DCRs.
+  Its Azure missing-heartbeat alert runs independently of the GitHub runner.
+
+DORA
+The existing deployment/change/incident model is intended to support DORA:
+  Deployment frequency: deduplicated confirmed PRODUCTION deployments.
+  Change lead time: agreed commit/change-to-first-production-deployment linkage.
+  Change fail rate: production deployments with verified failure/intervention
+                    classification divided by eligible production deployments.
+  Failed deployment recovery time: verified failure start to service restoration.
+  Deployment rework rate: production deployments with verified rework classification.
+This package supplies workflow execution and some confirmed deployment facts.
+It does not yet collect change or incident facts or determine failure/rework flags.
+Unknown classification must not be counted as healthy, zero failures or zero
+recovery time. Non-production measures must be labelled as such, not DORA production
+results. The five metrics need agreed definitions, denominator coverage and data
+quality checks before management reporting.
+
+ALERT RESPONSIBILITY
+We can implement collector-health alerts, failure-query templates, deduplication
+queries and controlled tests before Chinchia finishes application CI/CD.
+Application-specific enablement needs his actual workflow/stage definitions and
+failure semantics. Platform/admin teams supply permissions, runner access and
+Action Groups; operations supplies ServiceNow routing and incident criteria.
+
+The three draft rules are stateful, disabled, severity 2 by default, evaluated
+every five minutes and require two failing evaluations. These are starting values,
+not an agreed bank SLA. Selected workflows use an empty allowlist until reviewed.
+Failures are observed within a one-hour window, with a two-hour query lookback.
+Heartbeat alerts require no successful watchdog heartbeat for 60 minutes, including
+the case where the health table has never received a row. Enable only after setup.
+Rules aggregate matching rows; ServiceNow per-issue correlation is not implemented.
+When adding routing, agree an incident key such as repo/workflow/environment/rule
+and update the existing incident while the condition persists. Define severity,
+suppression during planned maintenance, retry thresholds and recovery behavior.
+
+INPUTS TO REQUEST FROM CHINCHIA
+1. Workflow IDs/paths, exact matrix job and step names, and service/environment scope.
+2. Which stages are blocking, optional or continue-on-error; which failures deserve
+   notifications versus an operational incident.
+3. Which GitHub environment deployment success proves a completed rollout, with
+   source-run links, commit, production flag and later revision/image evidence.
+4. SonarQube/Snyk project identifiers and approved result APIs/artifact contracts
+   when detailed quality/security metrics are requested.
+No Azure telemetry publishing step is required inside his jobs for job/step
+collection. Deployment evidence or tool result export may require small additions
+to his pipeline after agreement. This package does not change his application CI/CD.
+
+REFERENCES
+GitHub workflow_run trigger and default-branch behavior:
+https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run
+GitHub workflow jobs and steps API:
+https://docs.github.com/en/rest/actions/workflow-jobs
+Azure custom table resource:
+https://learn.microsoft.com/en-us/azure/templates/microsoft.operationalinsights/2022-10-01/workspaces/tables
+Azure DCR resource:
+https://learn.microsoft.com/en-us/azure/templates/microsoft.insights/2024-03-11/datacollectionrules
+Azure scheduled query alerts:
+https://learn.microsoft.com/en-us/azure/templates/microsoft.insights/2023-12-01/scheduledqueryrules

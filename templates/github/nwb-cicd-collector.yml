@@ -1,0 +1,94 @@
+name: NWB CI/CD collector
+
+# Install at the APPLICATION REPOSITORY ROOT on its default branch.
+# Omitting the workflows filter subscribes to completed workflows in this repository.
+on:
+  workflow_run:
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Completed application run ID for preview or replay
+        required: true
+        type: string
+      run_attempt:
+        description: Attempt number (0 selects the latest)
+        default: '0'
+        type: string
+      publish:
+        description: Publish to Azure (false previews only)
+        default: false
+        type: boolean
+      show_identity:
+        description: Print only OIDC issuer, subject and audience for federation setup
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
+  deployments: read
+  id-token: write
+
+jobs:
+  collect:
+    # A job-level guard prevents collector work from recursively collecting itself.
+    # GitHub can still show skipped trigger runs; see the operations guide.
+    if: >-
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      (github.event_name == 'workflow_dispatch' ||
+       (vars.CICD_MONITOR_AUTOMATION_ENABLED == 'true' &&
+        github.event.workflow_run.name != 'NWB CI/CD collector' &&
+        github.event.workflow_run.path != '.github/workflows/nwb-cicd-collector.yml' &&
+        github.event.workflow_run.path != '.github/workflows/nwb-collector-health.yml' &&
+        github.event.workflow_run.path != '.github/workflows/nwb-workflow-monitor.yml' &&
+        github.event.workflow_run.path != '.github/workflows/nwb-workflow-monitor-auto.yml'))
+    runs-on: ${{ fromJSON(vars.CICD_MONITOR_RUNNER_LABELS) }}
+    environment:
+      name: cicd-observability
+      deployment: false
+    timeout-minutes: 20
+    steps:
+      - name: Check out trusted monitoring code
+        uses: actions/checkout@v4
+        with:
+          # Never use the triggering application's head_sha here.
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Show federation settings
+        if: github.event_name == 'workflow_dispatch' && inputs.show_identity
+        shell: pwsh
+        run: ./scripts/nwb-observability/Show-OidcClaims.ps1
+      - name: Sign in to Azure
+        if: >-
+          (github.event_name == 'workflow_dispatch' && inputs.publish) ||
+          (github.event_name == 'workflow_run' && vars.CICD_MONITOR_AUTO_PUBLISH == 'true')
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          audience: api://AzureADTokenExchange
+      - name: Collect workflow, jobs, steps and confirmed deployments
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.run_attempt }}
+          MANUAL_PUBLISH: ${{ inputs.publish }}
+          AUTO_PUBLISH: ${{ vars.CICD_MONITOR_AUTO_PUBLISH }}
+          AZURE_DCE_LOGS_ENDPOINT: ${{ vars.AZURE_DCE_LOGS_ENDPOINT }}
+          AZURE_WORKFLOW_DCR_IMMUTABLE_ID: ${{ vars.AZURE_WORKFLOW_DCR_IMMUTABLE_ID }}
+          AZURE_DEPLOYMENT_DCR_IMMUTABLE_ID: ${{ vars.AZURE_DEPLOYMENT_DCR_IMMUTABLE_ID }}
+          AZURE_EXECUTION_DCR_IMMUTABLE_ID: ${{ vars.AZURE_EXECUTION_DCR_IMMUTABLE_ID }}
+          AZURE_HEALTH_DCR_IMMUTABLE_ID: ${{ vars.AZURE_HEALTH_DCR_IMMUTABLE_ID }}
+        run: |
+          $options = @{ ConfigPath='./config/nwb-observability/collector.json' }
+          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+            $options.RunId = $env:SOURCE_RUN_ID
+            $options.RunAttempt = [int]$env:SOURCE_RUN_ATTEMPT
+            $options.Publish = ($env:MANUAL_PUBLISH -eq 'true')
+          } else {
+            $options.Publish = ($env:AUTO_PUBLISH -eq 'true')
+          }
+          ./scripts/nwb-observability/Invoke-CicdCollection.ps1 @options
