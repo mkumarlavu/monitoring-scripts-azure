@@ -1,0 +1,41 @@
+name: NWB CI/CD monitoring scripts
+description: Collect caller-repository CI/CD metadata or collector health using the bundled scripts.
+inputs:
+  operation:
+    description: collect or health
+    required: true
+  run_id:
+    description: Completed application run ID for a manual collection
+    default: ''
+  run_attempt:
+    description: Attempt number; 0 selects the latest for manual collection
+    default: '0'
+  publish:
+    description: Publish records to Azure; false previews only
+    default: 'false'
+  show_identity:
+    description: Show only OIDC issuer, subject and audience
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - name: Run the bundled monitoring scripts
+      shell: pwsh
+      env:
+        NWB_ACTION_PATH: ${{ github.action_path }}
+        NWB_OPERATION: ${{ inputs.operation }}
+        NWB_SOURCE_RUN_ID: ${{ inputs.run_id }}
+        NWB_SOURCE_RUN_ATTEMPT: ${{ inputs.run_attempt }}
+        NWB_PUBLISH: ${{ inputs.publish }}
+        NWB_SHOW_IDENTITY: ${{ inputs.show_identity }}
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        $options = @{
+          Operation = $env:NWB_OPERATION
+          RunId = $env:NWB_SOURCE_RUN_ID
+          RunAttempt = [int]$env:NWB_SOURCE_RUN_ATTEMPT
+          Publish = [bool]::Parse($env:NWB_PUBLISH)
+          ShowIdentity = [bool]::Parse($env:NWB_SHOW_IDENTITY)
+          ConfigPath = Join-Path $env:GITHUB_WORKSPACE 'nwb-source/config/nwb-observability/collector.json'
+        }
+        & (Join-Path $env:NWB_ACTION_PATH 'scripts/Invoke-SharedAction.ps1') @options

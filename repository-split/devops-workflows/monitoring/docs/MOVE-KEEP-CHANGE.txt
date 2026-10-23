@@ -1,0 +1,155 @@
+NORTHWEST MONITORING: TWO-REPOSITORY MIGRATION
+Prepared 23 October 2026
+
+The two subfolders contain the proposed contents for two separate GitHub repos.
+Copy their CONTENTS into the matching repo roots; do not create repository-split
+or monitoring-scripts-azure folders inside the Northwest repos.
+
+SOURCE PACKAGE                              NORTHWEST REPOSITORY
+repository-split/devops-workflows/           northwest/devops-workflows
+repository-split/doc_extraction/             northwest/doc_extraction
+
+The repository name doc_extraction uses an underscore, matching the screenshots.
+devops-workflows is assumed to be northwest/devops-workflows on northwest.ghe.com.
+No files have been pushed and no Azure resources have been changed by this package.
+
+WHAT GOES IN DEVOPS-WORKFLOWS
+.github/workflows/nwb-cicd-collector-reusable.yml
+.github/workflows/nwb-collector-health-reusable.yml
+actions/nwb-cicd-monitoring/action.yml
+actions/nwb-cicd-monitoring/scripts/  (all 14 files)
+monitoring/infra/                    (shared schema/alert source; no redeploy now)
+monitoring/queries/                  (dashboard and alert queries)
+monitoring/tests/                    (offline tests)
+monitoring/config/                   (example configuration, not live app settings)
+monitoring/docs/                     (operations and onboarding)
+
+The scripts are updated multi-repository versions. Use THESE files rather than
+moving the old doc_extraction-specific scripts unchanged. Two new helpers are
+NwbRepository.ps1 (repository validation) and Invoke-SharedAction.ps1 (action entry).
+Invoke-WorkflowEvent.ps1 is retained for legacy tests; current workflows do not call it.
+
+WHAT STAYS IN DOC_EXTRACTION
+.github/workflows/nwb-cicd-collector.yml   REPLACE with the small caller in this package
+.github/workflows/nwb-collector-health.yml REPLACE with the small caller in this package
+config/nwb-observability/collector.json   KEEP existing reviewed mappings
+
+If configuration already exists, preserve DefaultService, WorkflowMappings,
+StageMappings and DeploymentEnvironments. Ensure CollectPipelineExecution=true
+and PublishHealth=true are present as JSON booleans. The provided empty mappings
+are a starter example, not a reason to erase the mappings already reviewed.
+
+KEEP the application CI/CD files owned by Chinchia, application source, scripts/IL,
+runner variables, automation flags, and the cicd-observability GitHub environment.
+Keep the eight Azure variables in the CALLING repository's monitoring environment.
+The reusable jobs explicitly select that environment. Variables stored only in
+devops-workflows do not become application repository configuration automatically.
+
+WHAT TO REMOVE AFTER SUCCESSFUL MIGRATION
+doc_extraction/scripts/nwb-observability/ is no longer needed by these new callers.
+Remove its contents only after the shared version passes preview and Azure ingestion
+tests and after confirming no other workflow references those scripts. Preserve
+the last working commit for rollback. Do not remove the parent scripts directory.
+Retire older monitoring workflows if installed; do not leave two collectors active.
+
+RELEASE ORDER: TWO REAL CENTRAL COMMIT IDS ARE REQUIRED
+Placeholders are deliberate and MUST be replaced before using the callers.
+GitHub does not substitute a variable inside a reusable-workflow uses reference.
+
+1. Keep all four CICD_MONITOR automation/publish flags false in doc_extraction.
+2. In devops-workflows, first commit/merge actions/nwb-cicd-monitoring and monitoring/.
+   Do not install the two reusable YAML files with unresolved action references.
+   Record the full 40-character commit SHA after merge. Call this ACTION_SHA.
+3. In BOTH reusable YAML files replace REPLACE_WITH_ACTION_COMMIT_SHA with ACTION_SHA.
+   Example shape (use a real SHA, not this text):
+   uses: northwest/devops-workflows/actions/nwb-cicd-monitoring@<ACTION_SHA>
+4. Commit/merge those finalized reusable workflows into devops-workflows.
+   Record that full merged commit SHA. Call this WORKFLOW_SHA.
+5. In BOTH caller YAML files replace REPLACE_WITH_WORKFLOW_COMMIT_SHA with WORKFLOW_SHA.
+   The same WORKFLOW_SHA contains both reusable workflow files.
+6. In a doc_extraction PR, replace the two existing monitoring YAML files using
+   those finalized callers. Keep the existing configuration and scripts for now.
+7. Merge the reviewed caller PR into doc_extraction's default branch.
+
+ACTION_SHA and WORKFLOW_SHA usually differ. The first identifies scripts and the
+composite action; the second identifies workflows that call that exact action.
+This avoids a self-referencing commit ID and makes upgrades explicit. Future
+releases follow the same action -> workflow -> caller sequence.
+
+ADMIN CONFIGURATION
+In devops-workflows: Settings > Actions > General > Access. Allow use by approved
+repositories in the northwest organization, according to the bank's policy.
+In each caller: allow the central reusable workflows and composite action plus
+the approved checkout and Azure Login actions. Runner access must allow the CALLER.
+No personal access token or secrets: inherit is added. GitHub supplies the source
+repo token and downloads the allowed shared action. The action's scripts are read
+from github.action_path, so no cross-repository git checkout credential is needed.
+
+The caller retains contents:read, actions:read, deployments:read (collector), and
+id-token:write. id-token:write enables requesting an OIDC token; Azure DCR access
+still requires federation and Monitoring Metrics Publisher. The reusable workflow
+cannot elevate the token permissions provided by the caller.
+
+Azure federation must trust the CALLER's identity/environment. For the pilot, check
+the existing federation with show_identity=true and publish=false. If trust also
+restricts job_workflow_ref, update it to the reviewed reusable workflow reference.
+For each new repo, confirm its own federation and identity permissions with admin.
+Do not assume the doc_extraction federation automatically trusts another repo.
+
+EXISTING GITHUB VARIABLES: KEEP THESE IN DOC_EXTRACTION
+Repository level:
+CICD_MONITOR_RUNNER_LABELS = ["self-hosted","Windows","X64"]
+CICD_MONITOR_AUTOMATION_ENABLED = false until tested
+CICD_MONITOR_AUTO_PUBLISH = false until tested
+CICD_MONITOR_HEALTH_ENABLED = false until tested
+CICD_MONITOR_HEALTH_PUBLISH = false until tested
+
+Environment cicd-observability:
+AZURE_CLIENT_ID
+AZURE_TENANT_ID
+AZURE_SUBSCRIPTION_ID
+AZURE_DCE_LOGS_ENDPOINT
+AZURE_WORKFLOW_DCR_IMMUTABLE_ID
+AZURE_DEPLOYMENT_DCR_IMMUTABLE_ID
+AZURE_EXECUTION_DCR_IMMUTABLE_ID
+AZURE_HEALTH_DCR_IMMUTABLE_ID
+
+No new GitHub variable is required solely for this refactor. Commit pins are literal
+uses references, not repository variables. No Azure table/DCR needs recreation.
+
+VALIDATE BEFORE REMOVING THE OLD SCRIPTS
+1. Actions > NWB CI/CD collector > Run workflow on the default branch.
+2. Enter a completed application run ID, run_attempt=0, publish=false.
+3. Confirm the run calls the reusable workflow and loads the pinned central action.
+4. Confirm preview records say Repository=northwest/doc_extraction and preserve
+   correct source links, stage mappings and deployment evidence.
+5. Run NWB collector health with publish=false.
+6. If federation needs checking, run the collector with show_identity=true and
+   publish=false; only issuer, subject and audience should be printed.
+7. Run controlled publish=true checks for collector and health. Verify records
+   appear in Log Analytics. A completed API call alone is not sufficient evidence.
+8. Confirm no other workflow references scripts/nwb-observability before removing
+   that folder in a separate cleanup commit. Preserve scripts/IL.
+9. Enable the four automation flags after validation. Observe an automatic
+   collection and scheduled heartbeat. Monitoring job approvals can delay runs.
+
+ROLLBACK
+Set the four flags false. Revert the caller replacement to the last working
+standalone workflow/script commit. Existing Azure resources and data remain intact.
+
+SECOND REPOSITORY ONBOARDING
+Copy just the two pinned caller YAML files and a reviewed collector.json into the
+second repo. Configure its runner labels, flags, environment, variables and Azure
+federation. Keep the caller workflow filenames unchanged because the health script
+looks up nwb-cicd-collector.yml. Run the same preview and publish checks. Verify
+Repository and Service values before enabling it.
+
+The shared script validates the northwest organization and approved enterprise
+host. Actual authorization comes from repository/action access, caller token,
+runner access and Azure federation/RBAC; organization membership alone is not an
+Azure authorization grant. Future non-Northwest-host support is not included.
+
+VALIDATION STATUS
+Offline script behavior and schema checks pass, including a second repository and
+cross-repository rejection cases. Live GitHub reusable workflow resolution, runner
+availability, OIDC trust, network access and Azure KQL/ingestion remain to be tested.

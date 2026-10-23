@@ -1,0 +1,7 @@
+// Coverage of reviewed business-stage mappings; counts STEPS only to avoid job/step duplication.
+NWBPipelineExecution_CL
+| where RecordType == 'Step'
+| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt, JobId, StepNumber
+| summarize TotalSteps=count(), MappedSteps=countif(StageMappingKnown),
+    UnmappedSteps=countif(not(StageMappingKnown)) by Repository, Service, Environment, PipelineName
+| extend MappingCoveragePercent=100.0 * MappedSteps / TotalSteps

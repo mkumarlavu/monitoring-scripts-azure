@@ -1,0 +1,25 @@
+name: NWB collector health
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish health records to Azure; false previews only
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+jobs:
+  health:
+    if: >-
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      (github.event_name == 'workflow_dispatch' || vars.CICD_MONITOR_HEALTH_ENABLED == 'true')
+    uses: northwest/devops-workflows/.github/workflows/nwb-collector-health-reusable.yml@REPLACE_WITH_WORKFLOW_COMMIT_SHA
+    with:
+      runner_labels: ${{ vars.CICD_MONITOR_RUNNER_LABELS }}
+      publish: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish) || (github.event_name == 'schedule' && vars.CICD_MONITOR_HEALTH_PUBLISH == 'true') }}

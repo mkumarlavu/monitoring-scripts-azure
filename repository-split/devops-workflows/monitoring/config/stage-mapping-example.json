@@ -1,0 +1,9 @@
+{
+  "StageMappings": {
+    "REPLACE_WITH_NUMERIC_WORKFLOW_ID": [
+      { "JobName": "REPLACE_WITH_EXACT_BUILD_JOB_NAME", "Stage": "Build" },
+      { "JobName": "REPLACE_WITH_EXACT_TEST_JOB_NAME", "Stage": "Test" },
+      { "JobName": "REPLACE_WITH_EXACT_SHARED_JOB_NAME", "StepName": "REPLACE_WITH_EXACT_SCAN_STEP_NAME", "Stage": "Security" }
+    ]
+  }
+}

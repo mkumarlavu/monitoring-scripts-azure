@@ -1,0 +1,9 @@
+// Widen the portal time selector to include observation/replay time.
+// Select newest observation BEFORE filtering by deployment outcome/time.
+NWBDeploymentFacts_CL
+| where Repository == "northwest/doc_extraction"
+| summarize arg_max(UpdatedAt, *) by Repository, DeploymentId
+| project DeployedAt, Service, Environment, DeploymentId, PipelineName,
+          CommitSha, ReachedProduction, ClassificationKnown,
+          ReworkClassificationKnown, PromotionStage, RunUrl
+| order by DeployedAt desc

@@ -1,0 +1,71 @@
+name: NWB reusable CI/CD collector
+on:
+  workflow_call:
+    inputs:
+      runner_labels:
+        description: JSON array of approved caller runner labels
+        required: true
+        type: string
+      run_id:
+        default: ''
+        type: string
+      run_attempt:
+        default: '0'
+        type: string
+      publish:
+        default: false
+        type: boolean
+      show_identity:
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
+  deployments: read
+  id-token: write
+
+jobs:
+  collect:
+    if: >-
+      github.repository_owner == 'northwest' &&
+      github.server_url == 'https://northwest.ghe.com' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      (github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch')
+    runs-on: ${{ fromJSON(inputs.runner_labels) }}
+    environment:
+      name: cicd-observability
+      deployment: false
+    timeout-minutes: 20
+    steps:
+      - name: Read configuration from the caller default-branch commit
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ github.sha }}
+          path: nwb-source
+          persist-credentials: false
+          sparse-checkout: config/nwb-observability
+      - name: Sign in to Azure
+        if: inputs.publish
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          audience: api://AzureADTokenExchange
+      - name: Collect using the released shared action
+        # Replace with the reviewed central commit containing action.yml and its scripts.
+        uses: northwest/devops-workflows/actions/nwb-cicd-monitoring@REPLACE_WITH_ACTION_COMMIT_SHA
+        with:
+          operation: collect
+          run_id: ${{ inputs.run_id }}
+          run_attempt: ${{ inputs.run_attempt }}
+          publish: ${{ inputs.publish }}
+          show_identity: ${{ inputs.show_identity }}
+        env:
+          AZURE_DCE_LOGS_ENDPOINT: ${{ vars.AZURE_DCE_LOGS_ENDPOINT }}
+          AZURE_WORKFLOW_DCR_IMMUTABLE_ID: ${{ vars.AZURE_WORKFLOW_DCR_IMMUTABLE_ID }}
+          AZURE_DEPLOYMENT_DCR_IMMUTABLE_ID: ${{ vars.AZURE_DEPLOYMENT_DCR_IMMUTABLE_ID }}
+          AZURE_EXECUTION_DCR_IMMUTABLE_ID: ${{ vars.AZURE_EXECUTION_DCR_IMMUTABLE_ID }}
+          AZURE_HEALTH_DCR_IMMUTABLE_ID: ${{ vars.AZURE_HEALTH_DCR_IMMUTABLE_ID }}

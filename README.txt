@@ -2,6 +2,10 @@ NORTHWEST CI/CD MONITORING - EXECUTION AND ALERT FOUNDATIONS
 Updated: 20 October 2026
 
 START HERE
+For the shared devops-workflows architecture, use repository-split/MOVE-KEEP-CHANGE.txt.
+That folder contains separate central-repository and application-repository file sets.
+The scripts and templates at this top level remain the original standalone package.
+
 This is a local source package for northwest/doc_extraction. Nothing in this
 folder has been deployed to Northwest GitHub, Azure or ServiceNow.
 Follow docs/INSTALLATION.txt in order. Existing infrastructure is reused.

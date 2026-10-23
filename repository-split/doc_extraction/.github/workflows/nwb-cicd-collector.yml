@@ -1,0 +1,50 @@
+name: NWB CI/CD collector
+on:
+  workflow_run:
+    workflows: ["**"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Completed application run ID for preview or replay
+        required: true
+        type: string
+      run_attempt:
+        description: Attempt number; 0 selects the latest
+        default: '0'
+        type: string
+      publish:
+        description: Publish to Azure; false previews only
+        default: false
+        type: boolean
+      show_identity:
+        description: Print only OIDC issuer, subject and audience
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
+  deployments: read
+  id-token: write
+
+jobs:
+  collect:
+    if: >-
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      (github.event_name == 'workflow_dispatch' ||
+       (vars.CICD_MONITOR_AUTOMATION_ENABLED == 'true' &&
+        github.event.workflow_run.name != 'NWB CI/CD collector' &&
+        github.event.workflow_run.name != 'NWB collector health' &&
+        github.event.workflow_run.path != '.github/workflows/nwb-cicd-collector.yml' &&
+        github.event.workflow_run.path != '.github/workflows/nwb-collector-health.yml' &&
+        github.event.workflow_run.path != '.github/workflows/nwb-workflow-monitor.yml' &&
+        github.event.workflow_run.path != '.github/workflows/nwb-workflow-monitor-auto.yml'))
+    # Replace with the central commit containing BOTH finalized reusable workflows.
+    uses: northwest/devops-workflows/.github/workflows/nwb-cicd-collector-reusable.yml@REPLACE_WITH_WORKFLOW_COMMIT_SHA
+    with:
+      runner_labels: ${{ vars.CICD_MONITOR_RUNNER_LABELS }}
+      run_id: ${{ inputs.run_id || '' }}
+      run_attempt: ${{ inputs.run_attempt || '0' }}
+      publish: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish) || (github.event_name == 'workflow_run' && vars.CICD_MONITOR_AUTO_PUBLISH == 'true') }}
+      show_identity: ${{ github.event_name == 'workflow_dispatch' && inputs.show_identity }}

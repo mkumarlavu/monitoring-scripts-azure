@@ -1,0 +1,12 @@
+// Latest observation per job, keeping each rerun attempt distinct.
+// Use the dashboard time picker for the reporting period.
+NWBPipelineExecution_CL
+| where RecordType == 'Job'
+| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt, JobId
+| summarize Jobs=count(), Succeeded=countif(Conclusion == 'success'),
+    Failed=countif(Conclusion == 'failure'), Cancelled=countif(Conclusion == 'cancelled'),
+    Skipped=countif(Conclusion == 'skipped'), TimedOut=countif(Conclusion == 'timed_out'),
+    KnownDurations=countif(isnotnull(DurationSeconds)),
+    DurationP50Seconds=percentile(DurationSeconds, 50),
+    DurationP95Seconds=percentile(DurationSeconds, 95)
+    by Repository, Service, Environment, PipelineName, JobName

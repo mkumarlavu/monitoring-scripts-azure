@@ -1,9 +1,10 @@
 name: NWB CI/CD collector
 
 # Install at the APPLICATION REPOSITORY ROOT on its default branch.
-# Omitting the workflows filter subscribes to completed workflows in this repository.
+# Explicitly match all workflow names; the job guard excludes monitoring workflows.
 on:
   workflow_run:
+    workflows: ["**"]
     types: [completed]
   workflow_dispatch:
     inputs:
