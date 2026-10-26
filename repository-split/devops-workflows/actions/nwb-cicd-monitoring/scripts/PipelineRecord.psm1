@@ -16,7 +16,7 @@ function ConvertTo-PipelineRecords {
     if($Run.html_url -cne $expectedUrl){throw 'Unexpected source run URL.'}
     $mapping=Get-NwbOptional $StageMappings ([string]$Run.workflow_id) @()
     $rules=@($mapping)
-    $keys=@{}
+    $keys=[System.Collections.Generic.Dictionary[string,bool]]::new([System.StringComparer]::Ordinal)
     foreach($rule in $rules){
         if([string]::IsNullOrWhiteSpace($rule.JobName) -or [string]::IsNullOrWhiteSpace($rule.Stage)){throw 'Stage mapping requires exact JobName and Stage.'}
         $stepName=Get-NwbOptional $rule 'StepName' ''

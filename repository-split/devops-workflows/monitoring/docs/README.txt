@@ -1,5 +1,8 @@
 SHARED NORTHWEST CI/CD MONITORING
 
+Start with ../../monitoring.md from this folder (monitoring.md at the repository
+root) for the complete setup, operation and troubleshooting guide.
+
 This directory holds the shared configuration examples, queries, infrastructure
 source and tests. Runtime code is in ../../actions/nwb-cicd-monitoring.
 Reusable workflow entry points are in ../../.github/workflows.
@@ -7,11 +10,14 @@ The repository-split/MOVE-KEEP-CHANGE.txt source-package guide contains the firs
 migration sequence. Copy that guide into this documentation folder for distribution.
 
 RUNTIME FLOW
-Caller workflow_run/manual event -> reusable workflow -> pinned composite action
+Caller workflow_run/manual event -> reusable workflow -> composite action from main
 -> bundled PowerShell scripts -> existing Azure ingestion endpoint and DCRs.
-The scheduled caller invokes the reusable health workflow -> same pinned action.
+The scheduled caller invokes the reusable health workflow -> same action from main.
 Execution still uses the caller's GitHub context, runner access and environment.
 The central repo does not subscribe to all organization repositories on its own.
+devops-workflows main is the source of truth: callers and the shared action use
+@main. Compatible central updates reach future new runs without caller SHA edits.
+Keep shared interfaces compatible and review/test changes before merging to main.
 
 COLLECTION BEHAVIOR
 Completed workflow attempts, individual jobs/steps, reviewed stages and confirmed
@@ -53,7 +59,12 @@ TESTS (run from the central repository root)
 ./monitoring/tests/Test-CicdCollection.ps1
 ./monitoring/tests/Test-PipelineExecution.ps1
 ./monitoring/tests/Test-MultiRepository.ps1
+./monitoring/tests/Test-ReviewFixes.ps1
 ./monitoring/tests/Test-Package.ps1
+
+PR-7-REVIEW-NOTES.md records review fixes and the required additive SourceUpdatedAt
+column in the existing workflow table/DCR. Apply that schema change before publishing
+the updated workflow records. Alerts remain disabled and have not been deployed.
 
 These use mocked GitHub and Azure responses and require no live credentials.
 Do not treat their success as proof of GitHub workflow schema acceptance or Azure

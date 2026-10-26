@@ -1,9 +1,11 @@
 // Empty allowlist is intentional. Populate only after owner/severity review.
+// Requires SourceUpdatedAt in the workflow table and DCR. Old rows have no value.
+// GitHub updated_at is a source-update time, not exact completion or collection time.
 let selectedPaths = dynamic([]);
 NWBWorkflowRuns_CL
 | where TimeGenerated > ago(2h) and Repository == '__NWB_REPOSITORY__'
 | where WorkflowPath in (selectedPaths)
 | summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt
 | summarize arg_max(RunAttempt, *) by Repository, RunId
-| where CompletedAt > ago(1h) and Conclusion in ('failure', 'timed_out')
-| project Repository, PipelineName, WorkflowPath, RunId, RunAttempt, Conclusion, CompletedAt, RunUrl
+| where SourceUpdatedAt > ago(1h) and Conclusion in ('failure', 'timed_out')
+| project Repository, PipelineName, WorkflowPath, RunId, RunAttempt, Conclusion, SourceUpdatedAt, CompletedAt, RunUrl

@@ -39,7 +39,11 @@ function Get-NwbArrayPages {
     $separator = '?'; if ($Uri.Contains('?')) { $separator = '&' }
     $items = @()
     for ($page=1; $page -le 100; $page++) {
-        $batch = @(Invoke-SafeRequest -Uri "${Uri}${separator}per_page=100&page=$page" -Headers $Headers)
+        # REST emits a top-level JSON array as one pipeline object. Normalize
+        # after assignment so Count measures records rather than the wrapper.
+        $response = Invoke-SafeRequest -Uri "${Uri}${separator}per_page=100&page=$page" -Headers $Headers
+        $batch = @()
+        if ($null -ne $response) { $batch = @($response) }
         $items += $batch
         if ($batch.Count -lt 100) { return ,$items }
     }

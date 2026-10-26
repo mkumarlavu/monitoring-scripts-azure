@@ -47,9 +47,16 @@ function ConvertTo-WorkflowRecord {
         $completed = $last.UtcDateTime.ToString('o')
         $duration = [int][math]::Floor(($last - $first).TotalSeconds)
     }
+    # GitHub's source last-update time supports recency even when no job ran.
+    # It is not an exact completion timestamp and must not be observation time.
+    $sourceUpdated=$null
+    if ($Run.PSObject.Properties['updated_at'] -and $Run.updated_at) {
+        $sourceUpdated=([datetimeoffset]$Run.updated_at).UtcDateTime.ToString('o')
+    }
     return [pscustomobject][ordered]@{
         TimeGenerated = $ObservedAt.UtcDateTime.ToString('o')
         UpdatedAt = $ObservedAt.UtcDateTime.ToString('o')
+        SourceUpdatedAt = $sourceUpdated
         Service = $Service
         Environment = $Environment
         Repository = $Repository

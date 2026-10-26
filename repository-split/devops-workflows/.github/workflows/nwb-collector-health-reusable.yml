@@ -37,8 +37,8 @@ jobs:
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
           audience: api://AzureADTokenExchange
       - name: Observe the calling repository collector
-        # Use the same reviewed action release as the collector reusable workflow.
-        uses: northwest/devops-workflows/actions/nwb-cicd-monitoring@REPLACE_WITH_ACTION_COMMIT_SHA
+        # Shared script updates are adopted from the central main branch.
+        uses: northwest/devops-workflows/actions/nwb-cicd-monitoring@main
         with:
           operation: health
           publish: ${{ inputs.publish }}

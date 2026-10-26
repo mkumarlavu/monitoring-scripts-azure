@@ -40,8 +40,8 @@ jobs:
         github.event.workflow_run.path != '.github/workflows/nwb-collector-health.yml' &&
         github.event.workflow_run.path != '.github/workflows/nwb-workflow-monitor.yml' &&
         github.event.workflow_run.path != '.github/workflows/nwb-workflow-monitor-auto.yml'))
-    # Replace with the central commit containing BOTH finalized reusable workflows.
-    uses: northwest/devops-workflows/.github/workflows/nwb-cicd-collector-reusable.yml@REPLACE_WITH_WORKFLOW_COMMIT_SHA
+    # The central main branch is the source of truth for monitoring.
+    uses: northwest/devops-workflows/.github/workflows/nwb-cicd-collector-reusable.yml@main
     with:
       runner_labels: ${{ vars.CICD_MONITOR_RUNNER_LABELS }}
       run_id: ${{ inputs.run_id || '' }}

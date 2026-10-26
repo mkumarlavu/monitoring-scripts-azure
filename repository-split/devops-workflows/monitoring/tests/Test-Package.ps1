@@ -28,11 +28,15 @@ $alerts=Get-Content (Join-Path $root 'infra/alerts-disabled.json') -Raw | Conver
 Check (@($alerts.resources | Where-Object {$_.properties.enabled -ne $false}).Count -eq 0) 'All generated alert resources remain disabled'
 Check ($alerts.parameters.selectedWorkflowPaths.defaultValue.Count -eq 0) 'Workflow alert allowlist defaults to empty'
 Check ($alerts.parameters.actionGroupIds.defaultValue.Count -eq 0) 'No unreviewed notification destination'
-foreach($pair in @(@('collector-heartbeat-missing','alert-heartbeat-missing.kql'),@('collector-failed','alert-collector-failed.kql'))){
+foreach($pair in @(@('collector-heartbeat-missing','alert-heartbeat-missing.kql'),@('collector-failed','alert-collector-failed.kql'),@('selected-workflow-failed','alert-selected-workflows.kql'))){
     $rule=@($alerts.resources | Where-Object {$_.properties.displayName -eq ('NWB '+$pair[0])})[0]
     $query=[IO.File]::ReadAllText((Join-Path $root ('queries/'+$pair[1])))
     $escaped=$query.Replace("'","''")
-    $expected="[replace('$escaped', '__NWB_REPOSITORY__', parameters('repository'))]"
+    $expression="replace('$escaped', '__NWB_REPOSITORY__', parameters('repository'))"
+    if($pair[0] -eq 'selected-workflow-failed'){
+        $expression="replace($expression, 'dynamic([])', concat('dynamic(', string(parameters('selectedWorkflowPaths')), ')'))"
+    }
+    $expected="[$expression]"
     Check ($rule.properties.criteria.allOf[0].query -ceq $expected) "Embedded query is current: $($pair[0])"
 }
 Write-Output "Passed $script:passed package checks. ARM/KQL/YAML require live platform validation."

@@ -1,5 +1,5 @@
 NORTHWEST MONITORING: TWO-REPOSITORY MIGRATION
-Prepared 23 October 2026
+Updated 26 October 2026
 
 The two subfolders contain the proposed contents for two separate GitHub repos.
 Copy their CONTENTS into the matching repo roots; do not create repository-split
@@ -52,29 +52,29 @@ tests and after confirming no other workflow references those scripts. Preserve
 the last working commit for rollback. Do not remove the parent scripts directory.
 Retire older monitoring workflows if installed; do not leave two collectors active.
 
-RELEASE ORDER: TWO REAL CENTRAL COMMIT IDS ARE REQUIRED
-Placeholders are deliberate and MUST be replaced before using the callers.
-GitHub does not substitute a variable inside a reusable-workflow uses reference.
+SOURCE OF TRUTH: DEVOPS-WORKFLOWS MAIN
+Both caller workflows use northwest/devops-workflows reusable workflows at @main.
+Both reusable workflows load the shared composite action at @main. No commit-ID
+placeholders or per-release SHA updates are needed in application repositories.
 
-1. Keep all four CICD_MONITOR automation/publish flags false in doc_extraction.
-2. In devops-workflows, first commit/merge actions/nwb-cicd-monitoring and monitoring/.
-   Do not install the two reusable YAML files with unresolved action references.
-   Record the full 40-character commit SHA after merge. Call this ACTION_SHA.
-3. In BOTH reusable YAML files replace REPLACE_WITH_ACTION_COMMIT_SHA with ACTION_SHA.
-   Example shape (use a real SHA, not this text):
-   uses: northwest/devops-workflows/actions/nwb-cicd-monitoring@<ACTION_SHA>
-4. Commit/merge those finalized reusable workflows into devops-workflows.
-   Record that full merged commit SHA. Call this WORKFLOW_SHA.
-5. In BOTH caller YAML files replace REPLACE_WITH_WORKFLOW_COMMIT_SHA with WORKFLOW_SHA.
-   The same WORKFLOW_SHA contains both reusable workflow files.
-6. In a doc_extraction PR, replace the two existing monitoring YAML files using
-   those finalized callers. Keep the existing configuration and scripts for now.
-7. Merge the reviewed caller PR into doc_extraction's default branch.
+1. Keep all four CICD_MONITOR automation/publish flags false during initial setup.
+2. Merge actions/nwb-cicd-monitoring, both reusable workflows and monitoring/ into
+   devops-workflows main together, with compatible workflow and script changes.
+3. In doc_extraction replace the two monitoring YAML files with the @main callers.
+   Preserve the existing configuration, environment and variables.
+4. Merge the caller PR into doc_extraction's default branch.
+5. Complete the preview and Azure publication checks below before enabling flags.
 
-ACTION_SHA and WORKFLOW_SHA usually differ. The first identifies scripts and the
-composite action; the second identifies workflows that call that exact action.
-This avoids a self-referencing commit ID and makes upgrades explicit. Future
-releases follow the same action -> workflow -> caller sequence.
+For later compatible monitoring changes, test and merge a PR in devops-workflows
+main. Future new monitoring runs use main without editing each caller repository.
+Merging central code does not itself trigger collection in application repositories.
+Caller configuration changes are still needed if a change introduces required
+inputs, variables or mapping fields. Maintain backwards compatibility for callers.
+Use PR review and required checks on main because changes affect all onboarded repos.
+Avoid a tag named main, since a same-named tag takes precedence over a branch.
+The workflow and action @main references resolve separately; do not assume they
+are an atomic snapshot if main changes while a run is starting. Failed-job reruns
+can reuse an earlier workflow revision; use a fresh run to validate an update.
 
 ADMIN CONFIGURATION
 In devops-workflows: Settings > Actions > General > Access. Allow use by approved
@@ -114,13 +114,15 @@ AZURE_DEPLOYMENT_DCR_IMMUTABLE_ID
 AZURE_EXECUTION_DCR_IMMUTABLE_ID
 AZURE_HEALTH_DCR_IMMUTABLE_ID
 
-No new GitHub variable is required solely for this refactor. Commit pins are literal
-uses references, not repository variables. No Azure table/DCR needs recreation.
+No new GitHub variable is required solely for this refactor. The @main references
+are literal uses references. No Azure table/DCR needs recreation. The later PR 7
+alert fix requires adding SourceUpdatedAt to the existing workflow table and DCR
+before publishing this version. Follow PR-7-REVIEW-NOTES.md for the schema update.
 
 VALIDATE BEFORE REMOVING THE OLD SCRIPTS
 1. Actions > NWB CI/CD collector > Run workflow on the default branch.
 2. Enter a completed application run ID, run_attempt=0, publish=false.
-3. Confirm the run calls the reusable workflow and loads the pinned central action.
+3. Confirm the run calls the reusable workflow and loads the central action from main.
 4. Confirm preview records say Repository=northwest/doc_extraction and preserve
    correct source links, stage mappings and deployment evidence.
 5. Run NWB collector health with publish=false.
@@ -134,11 +136,13 @@ VALIDATE BEFORE REMOVING THE OLD SCRIPTS
    collection and scheduled heartbeat. Monitoring job approvals can delay runs.
 
 ROLLBACK
-Set the four flags false. Revert the caller replacement to the last working
+For a shared-code regression, revert the offending PR in devops-workflows main.
+Future new runs use the reverted implementation. To roll back the initial migration,
+set the four flags false and revert the caller replacement to the last working
 standalone workflow/script commit. Existing Azure resources and data remain intact.
 
 SECOND REPOSITORY ONBOARDING
-Copy just the two pinned caller YAML files and a reviewed collector.json into the
+Copy just the two caller YAML files referencing main and a reviewed collector.json into the
 second repo. Configure its runner labels, flags, environment, variables and Azure
 federation. Keep the caller workflow filenames unchanged because the health script
 looks up nwb-cicd-collector.yml. Run the same preview and publish checks. Verify

@@ -54,9 +54,9 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
           audience: api://AzureADTokenExchange
-      - name: Collect using the released shared action
-        # Replace with the reviewed central commit containing action.yml and its scripts.
-        uses: northwest/devops-workflows/actions/nwb-cicd-monitoring@REPLACE_WITH_ACTION_COMMIT_SHA
+      - name: Collect using the shared action from main
+        # Shared script updates are adopted from the central main branch.
+        uses: northwest/devops-workflows/actions/nwb-cicd-monitoring@main
         with:
           operation: collect
           run_id: ${{ inputs.run_id }}
