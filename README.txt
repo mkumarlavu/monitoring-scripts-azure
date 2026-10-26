@@ -71,12 +71,18 @@ controlled preview and publishing checks before switching on automatic operation
 
 
 
+Set-Location C:\mycode\devops-workflows
+
+$signingEmail = "<Email>"
+$signingKeyPath = "$env:USERPROFILE\.ssh\nwb_git_signing"
+
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.ssh" | Out-Null
 
 
-if ([string]::IsNullOrWhiteSpace($signingEmail)) {
-    throw "Signing email is empty. Set it before continuing."
-}
-elseif ((Test-Path $signingKeyPath) -and (Test-Path "$signingKeyPath.pub")) {
+
+
+
+if ((Test-Path $signingKeyPath) -and (Test-Path "$signingKeyPath.pub")) {
     Write-Host "Using your existing signing key."
 }
 elseif ((Test-Path $signingKeyPath) -or (Test-Path "$signingKeyPath.pub")) {
