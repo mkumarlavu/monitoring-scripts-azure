@@ -70,11 +70,32 @@ workflow acceptance, the actual Windows runner or network access. Complete the
 controlled preview and publishing checks before switching on automatic operation.
 
 
-Set-Location C:\mycode\devops-workflows
 
-$signingKeyPath = "$env:USERPROFILE\.ssh\nwb_git_signing"
 
-git config --local user.email ""
-git config --local gpg.format ssh
-git config --local user.signingkey $signingKeyPath
-git config --local commit.gpgsign true
+$expectedRemoteHead = git rev-parse origin/feature/cicdmonitoring
+$backupBranch = "backup/cicdmonitoring-before-signing-" + (Get-Date -Format "yyyyMMdd-HHmmss")
+
+git branch $backupBranch
+
+$signingBase = git merge-base origin/main HEAD
+
+git log --oneline "$signingBase..HEAD"
+git rev-list --merges "$signingBase..HEAD"
+
+
+
+
+git rebase --force-rebase --gpg-sign $signingBase
+
+git rebase --abort
+
+
+git diff --exit-code $backupBranch HEAD
+$LASTEXITCODE
+git status
+
+
+
+git push "--force-with-lease=refs/heads/feature/cicdmonitoring:$expectedRemoteHead" origin HEAD:refs/heads/feature/cicdmonitoring
+
+
