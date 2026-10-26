@@ -19,6 +19,14 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Ensure PowerShell 7 is available on Windows
+      if: runner.os == 'Windows'
+      shell: powershell
+      env:
+        NWB_ACTION_PATH: ${{ github.action_path }}
+      run: |
+        . (Join-Path $env:NWB_ACTION_PATH 'scripts/Initialize-PowerShell.ps1')
+        Initialize-NwbPowerShell
     - name: Run the bundled monitoring scripts
       shell: pwsh
       env:
