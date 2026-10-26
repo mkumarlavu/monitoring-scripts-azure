@@ -70,41 +70,11 @@ workflow acceptance, the actual Windows runner or network access. Complete the
 controlled preview and publishing checks before switching on automatic operation.
 
 
-powershell.exe -NoProfile -NoExit -File "%USERPROFILE%\Desktop\github.ps1"
-
-
 Set-Location C:\mycode\devops-workflows
 
-$signingEmail = "<Email>"
 $signingKeyPath = "$env:USERPROFILE\.ssh\nwb_git_signing"
 
-New-Item -ItemType Directory -Force "$env:USERPROFILE\.ssh" | Out-Null
-
-
-
-
-
-if ((Test-Path $signingKeyPath) -and (Test-Path "$signingKeyPath.pub")) {
-    Write-Host "Using your existing signing key."
-}
-elseif ((Test-Path $signingKeyPath) -or (Test-Path "$signingKeyPath.pub")) {
-    throw "Only one key file exists. Stop here; do not overwrite it."
-}
-else {
-    ssh-keygen -t ed25519 -C $signingEmail -f $signingKeyPath
-    if ($LASTEXITCODE -ne 0) {
-        throw "Key generation failed. Stop here."
-    }
-}
-
-
-
-3. After success, display the public key
-Get-Content "$signingKeyPath.pub"
-Copy that output into:
-
-Northwest GitHub → Profile picture → Settings → SSH and GPG keys → New SSH key
-- Title: <ReplaceMe> workstation signing
-- Key type: Signing Key
-- Key: Paste the public-key output.
-Click Add SSH key. Keep this terminal open; register the key before re-signing the commits.
+git config --local user.email ""
+git config --local gpg.format ssh
+git config --local user.signingkey $signingKeyPath
+git config --local commit.gpgsign true
