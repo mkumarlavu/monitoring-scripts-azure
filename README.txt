@@ -70,6 +70,8 @@ workflow acceptance, the actual Windows runner or network access. Complete the
 controlled preview and publishing checks before switching on automatic operation.
 
 
+powershell.exe -NoProfile -NoExit -File "%USERPROFILE%\Desktop\github.ps1"
+
 
 Set-Location C:\mycode\devops-workflows
 
