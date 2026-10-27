@@ -72,30 +72,10 @@ controlled preview and publishing checks before switching on automatic operation
 
 
 
-$expectedRemoteHead = git rev-parse origin/feature/cicdmonitoring
-$backupBranch = "backup/cicdmonitoring-before-signing-" + (Get-Date -Format "yyyyMMdd-HHmmss")
-
-git branch $backupBranch
-
-$signingBase = git merge-base origin/main HEAD
-
-git log --oneline "$signingBase..HEAD"
-git rev-list --merges "$signingBase..HEAD"
-
-
-
-
-git rebase --force-rebase --gpg-sign $signingBase
-
-git rebase --abort
-
-
-git diff --exit-code $backupBranch HEAD
-$LASTEXITCODE
-git status
-
-
-
-git push "--force-with-lease=refs/heads/feature/cicdmonitoring:$expectedRemoteHead" origin HEAD:refs/heads/feature/cicdmonitoring
+NWBWorkflowRuns_CL
+| where TimeGenerated > ago(1h)
+| where Repository == "northwest/doc_extraction"
+| where RunId == "138375551"
+| order by TimeGenerated desc
 
 
