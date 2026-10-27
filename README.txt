@@ -85,3 +85,9 @@ NWBPipelineExecution_CL
 | project TimeGenerated, RunId, RecordType,
           JobName, StepName, Conclusion, DurationSeconds
 | order by TimeGenerated desc
+
+
+NWBWorkflowRuns_CL
+| where TimeGenerated > ago(24h)
+| order by TimeGenerated desc
+| take 20
