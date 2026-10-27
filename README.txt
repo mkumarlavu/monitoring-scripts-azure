@@ -73,9 +73,15 @@ controlled preview and publishing checks before switching on automatic operation
 
 
 NWBWorkflowRuns_CL
-| where TimeGenerated > ago(1h)
-| where Repository == "northwest/doc_extraction"
+| where TimeGenerated > ago(24h)
 | where RunId == "138375551"
 | order by TimeGenerated desc
 
 
+
+NWBPipelineExecution_CL
+| where TimeGenerated > ago(24h)
+| where RunId == "138375551"
+| project TimeGenerated, RunId, RecordType,
+          JobName, StepName, Conclusion, DurationSeconds
+| order by TimeGenerated desc
