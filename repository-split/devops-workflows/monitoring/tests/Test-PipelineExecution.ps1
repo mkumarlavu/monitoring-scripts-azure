@@ -24,6 +24,16 @@ Check ($records[2].Conclusion -eq 'failure' -and $records[0].Conclusion -eq 'suc
 Check ($null -eq $records[3].DurationSeconds) 'Skipped execution duration stays unknown'
 $unmapped=@(ConvertTo-PipelineRecords -Run $run -Jobs @($job) -Service test -Environment unknown)
 Check (-not $unmapped[0].StageMappingKnown -and $unmapped[0].Stage -eq 'unmapped') 'Missing stage mapping is explicit'
+$pathMapping=[pscustomobject]@{'.github/workflows/app.yml'=@([pscustomobject]@{JobName='build (windows)';Stage='Build by path'});'42'=@([pscustomobject]@{JobName='build (windows)';Stage='Legacy'})}
+$pathRecords=@(ConvertTo-PipelineRecords -Run $run -Jobs @($job) -Service test -Environment unknown -StageMappings $pathMapping)
+Check ($pathRecords[0].Stage -eq 'Build by path') 'Stage path mapping takes priority over legacy ID'
+$run.workflow_id=99;$run.path='.github/workflows/app.yml@refs/heads/main'
+$pathRecords=@(ConvertTo-PipelineRecords -Run $run -Jobs @($job) -Service test -Environment unknown -StageMappings $pathMapping)
+Check ($pathRecords[0].Stage -eq 'Build by path' -and $pathRecords[0].WorkflowId -eq '99') 'ID change and path ref suffix retain classification and actual source ID'
+$run.path='.github/workflows/App.yml'
+$pathRecords=@(ConvertTo-PipelineRecords -Run $run -Jobs @($job) -Service test -Environment unknown -StageMappings $pathMapping)
+Check (-not $pathRecords[0].StageMappingKnown) 'Workflow path matching is case sensitive'
+$run.workflow_id=42;$run.path='.github/workflows/app.yml'
 $job.run_attempt=1;Reject {ConvertTo-PipelineRecords @options} 'different run/attempt';$job.run_attempt=2
 $options.Jobs=@($job,$job);Reject {ConvertTo-PipelineRecords @options} 'duplicate job ID';$options.Jobs=@($job)
 $job.steps[2].number=2;Reject {ConvertTo-PipelineRecords @options} 'duplicate step number';$job.steps[2].number=3

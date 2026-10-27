@@ -21,10 +21,12 @@ $excludedPaths=@('.github/workflows/nwb-cicd-collector.yml','.github/workflows/n
 if (($run.path -split '@')[0] -in $excludedPaths) { Write-Output 'Monitoring workflow excluded from application metrics.'; return }
 $config=Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
 if ([string]::IsNullOrWhiteSpace($config.DefaultService)) { throw 'Configure DefaultService.' }
-$mapping=$config.WorkflowMappings.PSObject.Properties[[string]$run.workflow_id]
+$workflowMappings=$null
+if ($config.PSObject.Properties['WorkflowMappings']) { $workflowMappings=$config.WorkflowMappings }
+$mapping=Get-NwbWorkflowMapping -Mappings $workflowMappings -Run $run
 if ($null -eq $mapping) {
     # Every new workflow is still collected. Unknown does not mean production or CI.
-    Write-Warning "Workflow ID $($run.workflow_id) is unclassified. Add its service/environment mapping."
+    Write-Information "Discovered workflow '$($run.name)' ($($run.path)) from GitHub. No override configured; collecting raw workflow/job/step metadata with environment unclassified." -InformationAction Continue
     $service=[string]$config.DefaultService; $environment='unclassified'; $isDeployment=$false
 } else {
     $value=$mapping.Value

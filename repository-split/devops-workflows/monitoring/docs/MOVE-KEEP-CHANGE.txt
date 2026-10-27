@@ -17,7 +17,7 @@ WHAT GOES IN DEVOPS-WORKFLOWS
 .github/workflows/nwb-cicd-collector-reusable.yml
 .github/workflows/nwb-collector-health-reusable.yml
 actions/nwb-cicd-monitoring/action.yml
-actions/nwb-cicd-monitoring/scripts/  (all 14 files)
+actions/nwb-cicd-monitoring/scripts/  (all 15 files)
 monitoring/infra/                    (shared schema/alert source; no redeploy now)
 monitoring/queries/                  (dashboard and alert queries)
 monitoring/tests/                    (offline tests)

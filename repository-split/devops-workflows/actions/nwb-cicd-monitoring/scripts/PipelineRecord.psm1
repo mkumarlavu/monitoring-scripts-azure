@@ -14,8 +14,9 @@ function ConvertTo-PipelineRecords {
         [string]$Run.id -notmatch '^[1-9][0-9]*$' -or [int]$Run.run_attempt -lt 1) { throw 'Invalid completed run for pipeline records.' }
     $expectedUrl='https://northwest.ghe.com/'+$repository+'/actions/runs/'+[string]$Run.id
     if($Run.html_url -cne $expectedUrl){throw 'Unexpected source run URL.'}
-    $mapping=Get-NwbOptional $StageMappings ([string]$Run.workflow_id) @()
-    $rules=@($mapping)
+    $mapping=Get-NwbWorkflowMapping -Mappings $StageMappings -Run $Run
+    $rules=@()
+    if ($null -ne $mapping) { $rules=@($mapping.Value) }
     $keys=[System.Collections.Generic.Dictionary[string,bool]]::new([System.StringComparer]::Ordinal)
     foreach($rule in $rules){
         if([string]::IsNullOrWhiteSpace($rule.JobName) -or [string]::IsNullOrWhiteSpace($rule.Stage)){throw 'Stage mapping requires exact JobName and Stage.'}

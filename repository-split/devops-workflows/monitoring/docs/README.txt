@@ -13,6 +13,11 @@ RUNTIME FLOW
 Caller workflow_run/manual event -> reusable workflow -> composite action from main
 -> bundled PowerShell scripts -> existing Azure ingestion endpoint and DCRs.
 The scheduled caller invokes the reusable health workflow -> same action from main.
+On Windows, the action checks administrator-installed PowerShell 7 using Windows
+PowerShell 5.1. It checks PATH and the standard Program Files installation, then
+adds the working runtime directory to GITHUB_PATH for subsequent steps. A missing
+or unusable runtime fails with a message for the runner administrator. Nothing is
+downloaded or installed. This check runs on the Actions runner, not the VDI.
 Execution still uses the caller's GitHub context, runner access and environment.
 The central repo does not subscribe to all organization repositories on its own.
 devops-workflows main is the source of truth: callers and the shared action use
@@ -75,3 +80,10 @@ https://docs.github.com/en/enterprise-cloud@latest/actions/how-tos/reuse-automat
 https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations
 https://docs.github.com/en/actions/tutorials/create-actions/create-a-composite-action
 https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-with-reusable-workflows
+
+WORKFLOW DISCOVERY
+GitHub supplies workflow IDs, names, paths, jobs and steps automatically. Empty
+WorkflowMappings and StageMappings are supported. Optional classifications can
+use exact workflow file paths instead of numeric IDs. Existing numeric mappings
+still work; path overrides take precedence. Unknown environment and business-stage
+values remain explicit. Deployment production meaning still needs reviewed evidence.

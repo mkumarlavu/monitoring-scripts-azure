@@ -19,7 +19,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Ensure PowerShell 7 is available on Windows
+    - name: Check installed PowerShell 7 on Windows
       if: runner.os == 'Windows'
       shell: powershell
       env:

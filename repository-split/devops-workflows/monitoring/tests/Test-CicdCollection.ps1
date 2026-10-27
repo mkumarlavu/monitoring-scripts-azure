@@ -101,7 +101,16 @@ try {
     $run.workflow_id=43;$global:NwbCicdTest.deployments=@()
     $result=& $entry -RunId 123 -RunAttempt 2 -ConfigPath $configFile -WarningAction SilentlyContinue
     Check (($result -join '') -like '*"Environment":"unclassified"*') 'New workflows collected without inventing environment'
-    $run.workflow_id=42;$global:NwbCicdTest.deployments=@($deployment)
+    $config.WorkflowMappings['.github/workflows/app.yml']=@{Service='path-service';Environment='qa';IsDeploymentPipeline=$false}
+    $config | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $configFile -Encoding UTF8
+    $result=& $entry -RunId 123 -RunAttempt 2 -ConfigPath $configFile
+    Check (($result -join '') -like '*"Environment":"qa"*' -and ($result -join '') -like '*"Service":"path-service"*') 'Path mapping survives a changed numeric workflow ID'
+    $run.workflow_id=42
+    $result=& $entry -RunId 123 -RunAttempt 2 -ConfigPath $configFile
+    Check (($result -join '') -like '*"Environment":"qa"*') 'Path override takes precedence over legacy numeric mapping'
+    $config.WorkflowMappings.Remove('.github/workflows/app.yml')
+    $config | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $configFile -Encoding UTF8
+    $global:NwbCicdTest.deployments=@($deployment)
     $global:NwbCicdTest.posts=@();$global:NwbCicdTest.mode='workflow-post-error'
     Reject {& $entry -RunId 123 -RunAttempt 2 -ConfigPath $configFile -Publish} 'Workflow collection: Request failed'
     Check ($global:NwbCicdTest.posts.Count -eq 1 -and $global:NwbCicdTest.posts[0].Uri -like '*NWBDeploymentFacts_CL*') 'Workflow publish failure does not suppress deployment ingestion'

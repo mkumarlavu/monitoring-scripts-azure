@@ -155,6 +155,7 @@ All paths in this table are under [actions/nwb-cicd-monitoring/scripts](actions/
 | `NwbRepository.ps1` | Validates the Northwest repository name used in records and API paths. |
 | `Show-OidcClaims.ps1` | Prints issuer, subject and audience for federation setup. It does not print the JWT. |
 | `Invoke-WorkflowEvent.ps1` | Legacy entry point retained for compatibility/tests. The current shared workflows do not call it. |
+| `Initialize-PowerShell.ps1` | Finds and checks administrator-installed PowerShell 7, then adds its directory to the PATH for subsequent job steps. Never downloads or installs software. |
 
 The GitHub API base is `https://api.northwest.ghe.com`. The important requests are:
 
@@ -174,7 +175,7 @@ GET /repos/{owner}/{repo}/deployments/{deployment_id}/statuses
 
 The actual URL is one line. Requests use bearer-token authentication. The common sender currently sends one record per request. HTTP 429 and server errors have limited retries; this is not a durable queue. A failure can leave some records already accepted, so replay is supported and reporting queries must deduplicate observations.
 
-PowerShell was chosen because the existing implementation and approved runner are Windows-based. The workflows use PowerShell 7 (`pwsh`), not Windows PowerShell 5.1. A Linux runner is not required for this setup.
+The collectors use PowerShell 7 (`pwsh`) on the Northwest Windows self-hosted runner. The Linux migration is deferred; keep the current Windows runner labels.
 
 ## 7. Azure resources and why we created them
 
@@ -286,9 +287,12 @@ The role and ingestion checks follow the [Microsoft portal tutorial](https://lea
 
 In `devops-workflows`, go to **Settings > Actions > General > Access**. Select **Accessible from repositories in the northwest organization** and save. In the application repository, confirm the allowed-actions policy permits the central workflows/action, `actions/checkout@v4` and `azure/login@v2`. A policy requiring full commit SHAs will need to be addressed by the repository owner before this version-tag design can run.
 
-The runner must be available to the calling application repository. The current labels are `["self-hosted","Windows","X64"]`. These select any eligible runner matching all labels, not necessarily one machine by name.
+The runner must be available to the calling application repository. Keep `CICD_MONITOR_RUNNER_LABELS` set to `["self-hosted","Windows","X64"]`. Both monitoring workflows use this repository variable.
 
-The runner needs PowerShell 7, Azure CLI and Git, plus network access for GitHub Actions, `api.northwest.ghe.com`, Microsoft Entra authentication and the DCE ingestion endpoint. Run `pwsh --version`, `az version` and `git --version` in the runner service's environment when checking installation. A program available only in an administrator's interactive session may not be available to the runner service.
+The Windows runner needs Git, PowerShell 7 and Azure CLI for publishing. The shared action checks for PowerShell 7 on PATH and in the standard Program Files installation directory, then exposes the working runtime to subsequent steps using GITHUB_PATH. If it cannot find or start PowerShell 7, it fails with a message for the runner administrator. It does not download, install or upgrade software.
+
+The runner needs access to Northwest GitHub and its API, Microsoft Entra authentication and the DCE ingestion endpoint. Installing tools on your VDI only helps if it hosts the runner service. Check `pwsh --version`, `git --version` and `az version` in the runner service environment.
+
 
 ### Repository variables in doc_extraction
 
@@ -296,7 +300,7 @@ Navigation: **Settings > Secrets and variables > Actions > Variables > New repos
 
 | Name | Initial value | Purpose |
 | --- | --- | --- |
-| `CICD_MONITOR_RUNNER_LABELS` | `["self-hosted","Windows","X64"]` | JSON array of runner labels. |
+| `CICD_MONITOR_RUNNER_LABELS` | `["self-hosted","Windows","X64"]` | Current Windows runner labels. |
 | `CICD_MONITOR_AUTOMATION_ENABLED` | `false` | Allows automatic completed-workflow collection when set to `true`. |
 | `CICD_MONITOR_AUTO_PUBLISH` | `false` | Sends automatic collection results to Azure when set to `true`. |
 | `CICD_MONITOR_HEALTH_ENABLED` | `false` | Allows scheduled health jobs when set to `true`. |
@@ -337,7 +341,7 @@ Use the actual issuer reported by Northwest's GitHub instance; do not guess a pu
 
 ## 10. Configure workflows, stages and environments
 
-Edit `config/nwb-observability/collector.json` in the application repository. The following is an example only. Replace `12345678`, job names and the `dev` environment key with actual values before using it:
+Edit `config/nwb-observability/collector.json` in the application repository. The following is an example only. Replace `.github/workflows/application.yml`, job names and the `dev` environment key with actual values before using it:
 
 ```json
 {
@@ -345,14 +349,14 @@ Edit `config/nwb-observability/collector.json` in the application repository. Th
   "CollectPipelineExecution": true,
   "PublishHealth": true,
   "WorkflowMappings": {
-    "12345678": {
+    ".github/workflows/application.yml": {
       "Service": "doc-extraction",
       "Environment": "dev",
       "IsDeploymentPipeline": true
     }
   },
   "StageMappings": {
-    "12345678": [
+    ".github/workflows/application.yml": [
       { "JobName": "Build", "Stage": "Build" },
       { "JobName": "Test", "Stage": "Test" },
       { "JobName": "Quality", "StepName": "SonarQube scan", "Stage": "Security" },
@@ -370,7 +374,7 @@ Edit `config/nwb-observability/collector.json` in the application repository. Th
 }
 ```
 
-Get `workflow_id` from a completed-run API response or the `WorkflowId` field in execution preview records. It is different from the run ID in an Actions URL. Copy job and step names from the actual attempt, including matrix-expanded names. Stage selectors use exact, case-sensitive names. A step-specific mapping takes precedence over its job mapping.
+GitHub supplies workflow IDs, names, paths, jobs and steps automatically. No numeric IDs need to be entered for basic collection. Leave WorkflowMappings and StageMappings empty to collect new workflows immediately. Optional overrides use the exact WorkflowPath from preview output (without an @ref suffix); paths take priority over legacy numeric-ID keys. A changed ID with the same path retains the override. A renamed file needs its optional override updated. Copy exact, case-sensitive job and step names, including matrix-expanded names. Step-specific stage rules take precedence over job rules.
 
 Set `IsDeploymentPipeline` to true only where successful completion is expected to have deployment evidence. Set `SuccessMeansDeployed` to true only after confirming with the pipeline owner that the GitHub deployment status really represents completed deployment.
 
@@ -393,7 +397,7 @@ For a successful run marked as a deployment pipeline, missing qualifying deploym
 ## 11. First rollout, step by step
 
 1. Keep the four automatic enable/publish flags false in `doc_extraction`.
-2. Merge the central action, all 14 scripts, both reusable workflows and supporting monitoring files into `devops-workflows/main`.
+2. Merge the central action, all 15 scripts, both reusable workflows and supporting monitoring files into `devops-workflows/main`.
 3. Confirm shared repository access, runner access and allowed actions.
 4. Replace the two monitoring files in `doc_extraction/.github/workflows` with the small `@main` callers. Preserve the reviewed configuration and old scripts for now.
 5. Merge the caller files and configuration into the application repository's default branch.
@@ -511,11 +515,12 @@ A failed feature-branch experiment should not automatically create a bank incide
 | Reusable workflow/action not found | Confirm the files exist on `devops-workflows/main`, names match, organization access was saved, and the caller permits the shared components. |
 | Job stays queued | Confirm an online runner matches all three labels and its group permits the caller repository. |
 | Job waits for approval | Check protection rules on the caller's `cicd-observability` environment. |
-| `pwsh` or `az` not found | Install/check PowerShell 7 or Azure CLI in the runner service environment. |
+| `pwsh` not found on Windows | Check the installed-runtime step. Ask the runner administrator to verify PowerShell 7 can start under the service account, using PATH or the standard Program Files installation. No automatic installation is attempted. |
+| `az` not found | Install/check Azure CLI in the runner service environment. The PowerShell setup step does not provide Azure CLI. |
 | Azure login fails | Check monitoring client/tenant/subscription variables, `id-token: write`, and the exact federation issuer/subject/audience. |
 | Azure ingestion returns 403 | Check Monitoring Metrics Publisher on the specific DCR used by the request, identity selection, and network restrictions. |
 | Ingestion returns 400 or no expected table records | Check immutable ID, stream name, column names/types and DCR destination. Then check query time range and ingestion delay. |
-| Jobs show `unmapped` | Add exact job/step mappings under the correct workflow ID. |
+| Jobs show `unmapped` | Optionally add exact job/step mappings under the workflow file path; raw job and step names are already collected. |
 | Deployment table is empty | Confirm GitHub deployment/status evidence, exact run link and environment mapping. A green build or Azure deployment alone is insufficient for this collector. |
 | Heartbeat is missing | Check health flags, runner availability, GitHub history read, Azure login, endpoint and health DCR permission. |
 | Duplicate-looking rows | Replays append records. Use the latest observation per stable record key in reporting queries. |
@@ -534,8 +539,10 @@ From the `devops-workflows` repository root, run the existing offline checks in 
 ./monitoring/tests/Test-PipelineExecution.ps1
 ./monitoring/tests/Test-MultiRepository.ps1
 ./monitoring/tests/Test-ReviewFixes.ps1
+./monitoring/tests/Test-PowerShellBootstrap.ps1
 ./monitoring/tests/Test-Package.ps1
 ```
+
 
 After changes to collection behavior, test preview and controlled publication in the pilot. The offline checks do not validate live GitHub YAML acceptance, OIDC, ARM deployment or KQL execution.
 
