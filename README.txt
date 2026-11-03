@@ -91,3 +91,38 @@ NWBWorkflowRuns_CL
 | where TimeGenerated > ago(24h)
 | order by TimeGenerated desc
 | take 20
+
+
+
+Open Azure Portal → Log Analytics workspaces → prd-cicdobservability-law-eus2 → Logs.
+
+1. Check the workflow summary
+
+NWBWorkflowRuns_CL
+| where TimeGenerated > ago(24h)
+| where Repository == "northwest/doc_extraction"
+| where RunId == "323897996"
+| project TimeGenerated, PipelineName, Conclusion,
+          DurationSeconds, Environment, IsDeploymentPipeline
+
+
+2. Check its jobs and steps
+
+NWBPipelineExecution_CL
+| where TimeGenerated > ago(24h)
+| where Repository == "northwest/doc_extraction"
+| where RunId == "323897996"
+| project RecordType, JobName, StepName, Stage,
+          Conclusion, DurationSeconds
+| order by JobName asc, RecordType asc
+
+Allow a few minutes if the records do not appear immediately. Compare the results with the application run in GitHub.
+After confirming those records, enable automatic collection in:
+
+doc_extraction → Settings → Secrets and variables → Actions → Variables
+Repository variable	Value
+CICD_MONITOR_AUTOMATION_ENABLED	true
+CICD_MONITOR_AUTO_PUBLISH	true
+
+
+Then observe the next normal application workflow completion. The collector should start and publish automatically, without you entering a run ID.
