@@ -126,3 +126,10 @@ CICD_MONITOR_AUTO_PUBLISH	true
 
 
 Then observe the next normal application workflow completion. The collector should start and publish automatically, without you entering a run ID.
+
+
+NWBCollectorHealth_CL
+| where TimeGenerated > ago(1h)
+| where Repository == "northwest/doc_extraction"
+| project TimeGenerated, Operation, Outcome, DetailCode
+| order by TimeGenerated desc
