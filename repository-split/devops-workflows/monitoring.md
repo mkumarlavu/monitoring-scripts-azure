@@ -2,7 +2,7 @@
 
 Updated: 3 November 2026
 
-Dashboard: [Azure Workbook installation and metric definitions](monitoring/workbooks/README.md). The import JSON is ready locally; saving and validating it in Northwest Azure is the next step.
+Dashboard: [Azure Workbook installation and metric definitions](monitoring/workbooks/README.md). The first import displays real workflow, execution and collection-health data in the user's Azure screenshots. The revised local layout and daily trend need to be applied to that workbook and checked.
 
 PR 7 follow-up: the workflow publisher now includes `SourceUpdatedAt` for alert recency. Add this datetime column to the existing workflow table and DCR before publishing the updated code. See [review fixes and schema update](monitoring/docs/PR-7-REVIEW-NOTES.md) for the copy list, Azure steps and verified-commit merge blocker.
 
@@ -20,7 +20,7 @@ For example, imagine the bank releases an update to the application that extract
 | Shared collection code | Merged into Northwest `devops-workflows`, as reported by the user and exercised by the shared action in the supplied run logs. |
 | Repository sharing | The `doc_extraction` caller successfully loaded the shared action and reusable workflow. Other repositories still need onboarding. |
 | Live collection | Manual publication verified in Azure screenshots: Copilot run `138375551` and application run `323897996` (Validate and deliver through Dev). The latter showed success, 331 seconds and 68 job/step rows on 3 November. Automatic collection and deployment evidence still need separate validation. |
-| Dashboards | An importable Azure Workbook with 20 summary tiles and supporting charts/tables is included under `monitoring/workbooks`. Portal import and live query/rendering validation are pending. |
+| Dashboards | The imported workbook displays two workflow attempts, eight jobs, 83 steps and two collection-health observations in the screenshots shared on 3 November. A local layout/trend revision is ready for reimport. Stage coverage is still 0%, environments are unclassified and no confirmed deployment records are shown. |
 | Alerts | Three disabled alert templates are included. Enabling and testing them is still required. |
 | DORA | Some supporting fields and tables exist. Complete DORA calculations and source integrations are still required. |
 | ServiceNow | No ServiceNow ticket-creation integration has been implemented in this package. |

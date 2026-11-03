@@ -3,7 +3,7 @@
     "items":  [
                   {
                       "content":  {
-                                      "json":  "# Northwest CI/CD monitoring\nWorkflow results, jobs and steps collected from GitHub. Start with the summary, then open a run in GitHub to investigate.\n\n**Reporting window = collection time (UTC).** Historical runs replayed today appear today. Counts describe observed attempts, not all GitHub activity or production deployment frequency. Repeated observations are deduplicated within the selected window; separate rerun attempts remain separate."
+                                      "json":  "# Northwest CI/CD monitoring\nWorkflow results, jobs and steps collected from GitHub. Start with the summary, then open a run in GitHub to investigate.\n\n**Reporting window = collection time (UTC).** Historical runs replayed today appear today. Counts describe observed attempts, not all GitHub activity or production deployment frequency. Repeated observations are deduplicated within the selected window; separate rerun attempts remain separate.\n\nThe daily chart includes zero-observation days. Zero means nothing was collected for that day in this selection; it does not prove that no workflow ran. Review small samples before treating success rates or percentiles as a baseline."
                                   },
                       "name":  "intro",
                       "type":  1
@@ -88,7 +88,7 @@
                                       "version":  "KqlItem/1.0",
                                       "title":  "Workflow summary",
                                       "query":  "let selectedRepository = base64_decode_tostring(\u0027{Repository:base64}\u0027);\nlet selectedWorkflow = base64_decode_tostring(\u0027{Workflow:base64}\u0027);\nlet selectedEnvironment = base64_decode_tostring(\u0027{Environment:base64}\u0027);\nlet W = NWBWorkflowRuns_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt\n| where selectedRepository == \u0027*\u0027 or Repository == selectedRepository\n| where selectedWorkflow == \u0027*\u0027 or PipelineName == selectedWorkflow\n| where selectedEnvironment == \u0027*\u0027 or Environment == selectedEnvironment;\nW\n| summarize Attempts=count(), Succeeded=countif(Conclusion == \u0027success\u0027),\n    Failed=countif(Conclusion == \u0027failure\u0027), TimedOut=countif(Conclusion == \u0027timed_out\u0027),\n    Cancelled=countif(Conclusion == \u0027cancelled\u0027), Skipped=countif(Conclusion == \u0027skipped\u0027),\n    Other=countif(Conclusion !in (\u0027success\u0027,\u0027failure\u0027,\u0027timed_out\u0027,\u0027cancelled\u0027,\u0027skipped\u0027)),\n    KnownDurations=countif(isnotnull(DurationSeconds)),\n    P50=percentile(DurationSeconds,50), P95=percentile(DurationSeconds,95),\n    Unclassified=countif(isempty(Environment) or Environment == \u0027unclassified\u0027)\n| extend SuccessRate=iff(Attempts == 0, real(null), 100.0 * Succeeded / Attempts)\n| project Tiles=pack_array(\n    bag_pack(\u0027Metric\u0027,\u0027Workflow attempts\u0027,\u0027Value\u0027,tostring(Attempts),\u0027Detail\u0027,\u0027Distinct run ID + attempt\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027Succeeded\u0027,\u0027Value\u0027,tostring(Succeeded),\u0027Detail\u0027,\u0027Successful attempts\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027Failed\u0027,\u0027Value\u0027,tostring(Failed),\u0027Detail\u0027,\u0027Failure conclusion\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027Timed out\u0027,\u0027Value\u0027,tostring(TimedOut),\u0027Detail\u0027,\u0027Timed-out conclusion\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027Cancelled\u0027,\u0027Value\u0027,tostring(Cancelled),\u0027Detail\u0027,\u0027Separate from failures\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027Skipped\u0027,\u0027Value\u0027,tostring(Skipped),\u0027Detail\u0027,\u0027Separate from successes\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027Other outcomes\u0027,\u0027Value\u0027,tostring(Other),\u0027Detail\u0027,\u0027Neutral, action required or other\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027Success rate\u0027,\u0027Value\u0027,iff(isnull(SuccessRate),\u0027No data\u0027,strcat(round(SuccessRate,1),\u0027%\u0027)),\u0027Detail\u0027,\u0027Succeeded / all observed attempts\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027P50 execution seconds\u0027,\u0027Value\u0027,iff(isnull(P50),\u0027No data\u0027,tostring(round(P50,1))),\u0027Detail\u0027,\u0027Known job-window durations only\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027P95 execution seconds\u0027,\u0027Value\u0027,iff(isnull(P95),\u0027No data\u0027,tostring(round(P95,1))),\u0027Detail\u0027,\u0027Small samples are not a baseline\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027Missing durations\u0027,\u0027Value\u0027,tostring(Attempts-KnownDurations),\u0027Detail\u0027,\u0027Not substituted with zero\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027Unclassified environment\u0027,\u0027Value\u0027,tostring(Unclassified),\u0027Detail\u0027,\u0027Repository mapping still needed\u0027))\n| mv-expand Tiles\n| project Metric=tostring(Tiles.Metric), Value=tostring(Tiles.Value), Detail=tostring(Tiles.Detail)",
-                                      "size":  0,
+                                      "size":  3,
                                       "queryType":  0,
                                       "resourceType":  "microsoft.operationalinsights/workspaces",
                                       "crossComponentResources":  [
@@ -106,8 +106,9 @@
                                                                                },
                                                            "leftContent":  {
                                                                                "columnMatch":  "Value",
-                                                                               "formatter":  1
+                                                                               "formatter":  12
                                                                            },
+                                                           "size":  "auto",
                                                            "titleContent":  {
                                                                                 "columnMatch":  "Metric"
                                                                             }
@@ -121,7 +122,7 @@
                       "content":  {
                                       "version":  "KqlItem/1.0",
                                       "title":  "Observed attempts by collection day and outcome (UTC)",
-                                      "query":  "let selectedRepository = base64_decode_tostring(\u0027{Repository:base64}\u0027);\nlet selectedWorkflow = base64_decode_tostring(\u0027{Workflow:base64}\u0027);\nlet selectedEnvironment = base64_decode_tostring(\u0027{Environment:base64}\u0027);\nlet W = NWBWorkflowRuns_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt\n| where selectedRepository == \u0027*\u0027 or Repository == selectedRepository\n| where selectedWorkflow == \u0027*\u0027 or PipelineName == selectedWorkflow\n| where selectedEnvironment == \u0027*\u0027 or Environment == selectedEnvironment;\nW\n| summarize Attempts=count() by bin(TimeGenerated,1d), Conclusion\n| order by TimeGenerated asc",
+                                      "query":  "let selectedRepository = base64_decode_tostring(\u0027{Repository:base64}\u0027);\nlet selectedWorkflow = base64_decode_tostring(\u0027{Workflow:base64}\u0027);\nlet selectedEnvironment = base64_decode_tostring(\u0027{Environment:base64}\u0027);\nlet W = NWBWorkflowRuns_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt\n| where selectedRepository == \u0027*\u0027 or Repository == selectedRepository\n| where selectedWorkflow == \u0027*\u0027 or PipelineName == selectedWorkflow\n| where selectedEnvironment == \u0027*\u0027 or Environment == selectedEnvironment;\nW\n| make-series Attempts=count() default=0 on TimeGenerated\n    from startofday({TimeRange:start}) to {TimeRange:end} step 1d by Conclusion\n| mv-expand TimeGenerated to typeof(datetime), Attempts to typeof(long)\n| order by TimeGenerated asc",
                                       "size":  0,
                                       "queryType":  0,
                                       "resourceType":  "microsoft.operationalinsights/workspaces",
@@ -143,7 +144,7 @@
                                       "version":  "KqlItem/1.0",
                                       "title":  "Workflow comparison",
                                       "query":  "let selectedRepository = base64_decode_tostring(\u0027{Repository:base64}\u0027);\nlet selectedWorkflow = base64_decode_tostring(\u0027{Workflow:base64}\u0027);\nlet selectedEnvironment = base64_decode_tostring(\u0027{Environment:base64}\u0027);\nlet W = NWBWorkflowRuns_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt\n| where selectedRepository == \u0027*\u0027 or Repository == selectedRepository\n| where selectedWorkflow == \u0027*\u0027 or PipelineName == selectedWorkflow\n| where selectedEnvironment == \u0027*\u0027 or Environment == selectedEnvironment;\nW\n| summarize Attempts=count(), Succeeded=countif(Conclusion == \u0027success\u0027),\n    FailedOrTimedOut=countif(Conclusion in (\u0027failure\u0027,\u0027timed_out\u0027)),\n    P50Seconds=percentile(DurationSeconds,50), P95Seconds=percentile(DurationSeconds,95)\n    by Repository, PipelineName, Environment\n| extend SuccessRatePercent=round(100.0 * Succeeded / Attempts,1)\n| order by FailedOrTimedOut desc, Attempts desc",
-                                      "size":  0,
+                                      "size":  3,
                                       "queryType":  0,
                                       "resourceType":  "microsoft.operationalinsights/workspaces",
                                       "crossComponentResources":  [
@@ -163,8 +164,8 @@
                       "content":  {
                                       "version":  "KqlItem/1.0",
                                       "title":  "Latest collected attempts (maximum 100)",
-                                      "query":  "let selectedRepository = base64_decode_tostring(\u0027{Repository:base64}\u0027);\nlet selectedWorkflow = base64_decode_tostring(\u0027{Workflow:base64}\u0027);\nlet selectedEnvironment = base64_decode_tostring(\u0027{Environment:base64}\u0027);\nlet W = NWBWorkflowRuns_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt\n| where selectedRepository == \u0027*\u0027 or Repository == selectedRepository\n| where selectedWorkflow == \u0027*\u0027 or PipelineName == selectedWorkflow\n| where selectedEnvironment == \u0027*\u0027 or Environment == selectedEnvironment;\nW\n| top 100 by TimeGenerated desc\n| project CollectedAt=TimeGenerated, Repository, PipelineName, Environment, RunId, RunAttempt,\n    Conclusion, StartedAt, CompletedAt, DurationSeconds, SourceUpdatedAt, IsDeploymentPipeline, RunUrl",
-                                      "size":  0,
+                                      "query":  "let selectedRepository = base64_decode_tostring(\u0027{Repository:base64}\u0027);\nlet selectedWorkflow = base64_decode_tostring(\u0027{Workflow:base64}\u0027);\nlet selectedEnvironment = base64_decode_tostring(\u0027{Environment:base64}\u0027);\nlet W = NWBWorkflowRuns_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt\n| where selectedRepository == \u0027*\u0027 or Repository == selectedRepository\n| where selectedWorkflow == \u0027*\u0027 or PipelineName == selectedWorkflow\n| where selectedEnvironment == \u0027*\u0027 or Environment == selectedEnvironment;\nW\n| top 100 by TimeGenerated desc\n| project CollectedAt=TimeGenerated, Repository, PipelineName, Environment, RunId, RunAttempt,\n    Conclusion, CompletedAt, DurationSeconds, RunUrl",
+                                      "size":  3,
                                       "queryType":  0,
                                       "resourceType":  "microsoft.operationalinsights/workspaces",
                                       "crossComponentResources":  [
@@ -199,7 +200,7 @@
                                       "version":  "KqlItem/1.0",
                                       "title":  "Failed or timed-out application attempts (maximum 100)",
                                       "query":  "let selectedRepository = base64_decode_tostring(\u0027{Repository:base64}\u0027);\nlet selectedWorkflow = base64_decode_tostring(\u0027{Workflow:base64}\u0027);\nlet selectedEnvironment = base64_decode_tostring(\u0027{Environment:base64}\u0027);\nlet W = NWBWorkflowRuns_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt\n| where selectedRepository == \u0027*\u0027 or Repository == selectedRepository\n| where selectedWorkflow == \u0027*\u0027 or PipelineName == selectedWorkflow\n| where selectedEnvironment == \u0027*\u0027 or Environment == selectedEnvironment;\nW\n| where Conclusion in (\u0027failure\u0027,\u0027timed_out\u0027)\n| top 100 by TimeGenerated desc\n| project CollectedAt=TimeGenerated, Repository, PipelineName, Environment, RunId, RunAttempt,\n    Conclusion, CompletedAt, DurationSeconds, RunUrl",
-                                      "size":  0,
+                                      "size":  3,
                                       "queryType":  0,
                                       "resourceType":  "microsoft.operationalinsights/workspaces",
                                       "crossComponentResources":  [
@@ -209,7 +210,7 @@
                                       "visualization":  "table",
                                       "showRefreshButton":  true,
                                       "showExportToExcel":  true,
-                                      "noDataMessage":  "No matching observations. Check the filters and collection status; no data does not mean healthy.",
+                                      "noDataMessage":  "No failed or timed-out attempts in the collected records for these filters. Check Workflow attempts above to confirm there is data.",
                                       "gridSettings":  {
                                                            "formatters":  [
                                                                               {
@@ -241,7 +242,7 @@
                                       "version":  "KqlItem/1.0",
                                       "title":  "Jobs and steps",
                                       "query":  "let selectedRepository = base64_decode_tostring(\u0027{Repository:base64}\u0027);\nlet selectedWorkflow = base64_decode_tostring(\u0027{Workflow:base64}\u0027);\nlet selectedEnvironment = base64_decode_tostring(\u0027{Environment:base64}\u0027);\nlet E = NWBPipelineExecution_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt, JobId, RecordType, StepNumber\n| where selectedRepository == \u0027*\u0027 or Repository == selectedRepository\n| where selectedWorkflow == \u0027*\u0027 or PipelineName == selectedWorkflow\n| where selectedEnvironment == \u0027*\u0027 or Environment == selectedEnvironment;\nE\n| summarize Jobs=countif(RecordType == \u0027Job\u0027), Steps=countif(RecordType == \u0027Step\u0027),\n    FailedJobs=countif(RecordType == \u0027Job\u0027 and Conclusion in (\u0027failure\u0027,\u0027timed_out\u0027)),\n    SkippedJobs=countif(RecordType == \u0027Job\u0027 and Conclusion == \u0027skipped\u0027),\n    FailedSteps=countif(RecordType == \u0027Step\u0027 and Conclusion in (\u0027failure\u0027,\u0027timed_out\u0027)),\n    MappedJobs=countif(RecordType == \u0027Job\u0027 and StageMappingKnown == true),\n    MappedSteps=countif(RecordType == \u0027Step\u0027 and StageMappingKnown == true),\n    MissingJobDurations=countif(RecordType == \u0027Job\u0027 and isnull(DurationSeconds))\n| project Tiles=pack_array(\n    bag_pack(\u0027Metric\u0027,\u0027Jobs\u0027,\u0027Value\u0027,tostring(Jobs),\u0027Detail\u0027,\u0027Unique job per run attempt\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027Steps\u0027,\u0027Value\u0027,tostring(Steps),\u0027Detail\u0027,\u0027Unique step number per job\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027Failed / timed-out jobs\u0027,\u0027Value\u0027,tostring(FailedJobs),\u0027Detail\u0027,\u0027Job outcomes\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027Skipped jobs\u0027,\u0027Value\u0027,tostring(SkippedJobs),\u0027Detail\u0027,\u0027Not counted as failures\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027Failed / timed-out steps\u0027,\u0027Value\u0027,tostring(FailedSteps),\u0027Detail\u0027,\u0027May belong to the same failed job\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027Job stage coverage\u0027,\u0027Value\u0027,iff(Jobs == 0,\u0027No data\u0027,strcat(round(100.0*MappedJobs/Jobs,1),\u0027%\u0027)),\u0027Detail\u0027,\u0027Jobs with a known mapping\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027Step stage coverage\u0027,\u0027Value\u0027,iff(Steps == 0,\u0027No data\u0027,strcat(round(100.0*MappedSteps/Steps,1),\u0027%\u0027)),\u0027Detail\u0027,\u0027Steps with a known mapping\u0027),\n    bag_pack(\u0027Metric\u0027,\u0027Jobs without duration\u0027,\u0027Value\u0027,tostring(MissingJobDurations),\u0027Detail\u0027,\u0027Includes skipped jobs with no timing\u0027))\n| mv-expand Tiles\n| project Metric=tostring(Tiles.Metric), Value=tostring(Tiles.Value), Detail=tostring(Tiles.Detail)",
-                                      "size":  0,
+                                      "size":  3,
                                       "queryType":  0,
                                       "resourceType":  "microsoft.operationalinsights/workspaces",
                                       "crossComponentResources":  [
@@ -259,8 +260,9 @@
                                                                                },
                                                            "leftContent":  {
                                                                                "columnMatch":  "Value",
-                                                                               "formatter":  1
+                                                                               "formatter":  12
                                                                            },
+                                                           "size":  "auto",
                                                            "titleContent":  {
                                                                                 "columnMatch":  "Metric"
                                                                             }
@@ -275,7 +277,7 @@
                                       "version":  "KqlItem/1.0",
                                       "title":  "Slowest jobs by P95 duration (seconds; top 20)",
                                       "query":  "let selectedRepository = base64_decode_tostring(\u0027{Repository:base64}\u0027);\nlet selectedWorkflow = base64_decode_tostring(\u0027{Workflow:base64}\u0027);\nlet selectedEnvironment = base64_decode_tostring(\u0027{Environment:base64}\u0027);\nlet E = NWBPipelineExecution_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt, JobId, RecordType, StepNumber\n| where selectedRepository == \u0027*\u0027 or Repository == selectedRepository\n| where selectedWorkflow == \u0027*\u0027 or PipelineName == selectedWorkflow\n| where selectedEnvironment == \u0027*\u0027 or Environment == selectedEnvironment;\nE\n| where RecordType == \u0027Job\u0027 and isnotnull(DurationSeconds)\n| summarize Observations=count(), P50Seconds=percentile(DurationSeconds,50),\n    P95Seconds=percentile(DurationSeconds,95), MaxSeconds=max(DurationSeconds)\n    by Repository, PipelineName, JobName\n| top 20 by P95Seconds desc",
-                                      "size":  0,
+                                      "size":  3,
                                       "queryType":  0,
                                       "resourceType":  "microsoft.operationalinsights/workspaces",
                                       "crossComponentResources":  [
@@ -296,7 +298,7 @@
                                       "version":  "KqlItem/1.0",
                                       "title":  "Slowest steps by P95 duration (seconds; top 20)",
                                       "query":  "let selectedRepository = base64_decode_tostring(\u0027{Repository:base64}\u0027);\nlet selectedWorkflow = base64_decode_tostring(\u0027{Workflow:base64}\u0027);\nlet selectedEnvironment = base64_decode_tostring(\u0027{Environment:base64}\u0027);\nlet E = NWBPipelineExecution_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt, JobId, RecordType, StepNumber\n| where selectedRepository == \u0027*\u0027 or Repository == selectedRepository\n| where selectedWorkflow == \u0027*\u0027 or PipelineName == selectedWorkflow\n| where selectedEnvironment == \u0027*\u0027 or Environment == selectedEnvironment;\nE\n| where RecordType == \u0027Step\u0027 and isnotnull(DurationSeconds)\n| summarize Observations=count(), P50Seconds=percentile(DurationSeconds,50),\n    P95Seconds=percentile(DurationSeconds,95), MaxSeconds=max(DurationSeconds)\n    by Repository, PipelineName, JobName, StepName\n| top 20 by P95Seconds desc",
-                                      "size":  0,
+                                      "size":  3,
                                       "queryType":  0,
                                       "resourceType":  "microsoft.operationalinsights/workspaces",
                                       "crossComponentResources":  [
@@ -317,7 +319,7 @@
                                       "version":  "KqlItem/1.0",
                                       "title":  "Failed or timed-out jobs and steps (maximum 100)",
                                       "query":  "let selectedRepository = base64_decode_tostring(\u0027{Repository:base64}\u0027);\nlet selectedWorkflow = base64_decode_tostring(\u0027{Workflow:base64}\u0027);\nlet selectedEnvironment = base64_decode_tostring(\u0027{Environment:base64}\u0027);\nlet E = NWBPipelineExecution_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt, JobId, RecordType, StepNumber\n| where selectedRepository == \u0027*\u0027 or Repository == selectedRepository\n| where selectedWorkflow == \u0027*\u0027 or PipelineName == selectedWorkflow\n| where selectedEnvironment == \u0027*\u0027 or Environment == selectedEnvironment;\nE\n| where Conclusion in (\u0027failure\u0027,\u0027timed_out\u0027)\n| top 100 by TimeGenerated desc\n| project Repository, PipelineName, RunId, RunAttempt, RecordType, JobName,\n    StepName, Stage, Conclusion, DurationSeconds, RunUrl",
-                                      "size":  0,
+                                      "size":  3,
                                       "queryType":  0,
                                       "resourceType":  "microsoft.operationalinsights/workspaces",
                                       "crossComponentResources":  [
@@ -327,7 +329,7 @@
                                       "visualization":  "table",
                                       "showRefreshButton":  true,
                                       "showExportToExcel":  true,
-                                      "noDataMessage":  "No matching observations. Check the filters and collection status; no data does not mean healthy.",
+                                      "noDataMessage":  "No failed or timed-out jobs or steps in the collected records for these filters. Check the Jobs and Steps totals above.",
                                       "gridSettings":  {
                                                            "formatters":  [
                                                                               {
@@ -352,7 +354,7 @@
                                       "version":  "KqlItem/1.0",
                                       "title":  "Stage outcomes (jobs and steps reported separately)",
                                       "query":  "let selectedRepository = base64_decode_tostring(\u0027{Repository:base64}\u0027);\nlet selectedWorkflow = base64_decode_tostring(\u0027{Workflow:base64}\u0027);\nlet selectedEnvironment = base64_decode_tostring(\u0027{Environment:base64}\u0027);\nlet E = NWBPipelineExecution_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt, JobId, RecordType, StepNumber\n| where selectedRepository == \u0027*\u0027 or Repository == selectedRepository\n| where selectedWorkflow == \u0027*\u0027 or PipelineName == selectedWorkflow\n| where selectedEnvironment == \u0027*\u0027 or Environment == selectedEnvironment;\nE\n| summarize Observations=count(), Succeeded=countif(Conclusion == \u0027success\u0027),\n    FailedOrTimedOut=countif(Conclusion in (\u0027failure\u0027,\u0027timed_out\u0027)),\n    Skipped=countif(Conclusion == \u0027skipped\u0027) by RecordType, Stage, StageMappingKnown\n| order by RecordType asc, Stage asc",
-                                      "size":  0,
+                                      "size":  3,
                                       "queryType":  0,
                                       "resourceType":  "microsoft.operationalinsights/workspaces",
                                       "crossComponentResources":  [
@@ -373,7 +375,7 @@
                                       "version":  "KqlItem/1.0",
                                       "title":  "Names available for stage mapping (maximum 250)",
                                       "query":  "let selectedRepository = base64_decode_tostring(\u0027{Repository:base64}\u0027);\nlet selectedWorkflow = base64_decode_tostring(\u0027{Workflow:base64}\u0027);\nlet selectedEnvironment = base64_decode_tostring(\u0027{Environment:base64}\u0027);\nlet E = NWBPipelineExecution_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt, JobId, RecordType, StepNumber\n| where selectedRepository == \u0027*\u0027 or Repository == selectedRepository\n| where selectedWorkflow == \u0027*\u0027 or PipelineName == selectedWorkflow\n| where selectedEnvironment == \u0027*\u0027 or Environment == selectedEnvironment;\nE\n| summarize Observations=count() by WorkflowPath, RecordType, JobName, StepName, Stage, StageMappingKnown\n| order by WorkflowPath asc, JobName asc, RecordType asc, StepName asc\n| take 250",
-                                      "size":  0,
+                                      "size":  3,
                                       "queryType":  0,
                                       "resourceType":  "microsoft.operationalinsights/workspaces",
                                       "crossComponentResources":  [
@@ -401,7 +403,7 @@
                                       "version":  "KqlItem/1.0",
                                       "title":  "Collector observations and freshness",
                                       "query":  "let selectedRepository = base64_decode_tostring(\u0027{Repository:base64}\u0027);\nlet H = NWBCollectorHealth_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(UpdatedAt, *) by Repository, Collector, CheckId\n| where selectedRepository == \u0027*\u0027 or Repository == selectedRepository;\nH\n| summarize LastObserved=max(TimeGenerated), Observations=count(), FailureObservations=countif(Outcome == \u0027failure\u0027)\n    by Repository, Collector, Operation\n| extend MinutesSinceLastObservation=datetime_diff(\u0027minute\u0027,now(),LastObserved)\n| order by LastObserved desc",
-                                      "size":  0,
+                                      "size":  3,
                                       "queryType":  0,
                                       "resourceType":  "microsoft.operationalinsights/workspaces",
                                       "crossComponentResources":  [
@@ -411,7 +413,7 @@
                                       "visualization":  "table",
                                       "showRefreshButton":  true,
                                       "showExportToExcel":  true,
-                                      "noDataMessage":  "No matching observations. Check the filters and collection status; no data does not mean healthy."
+                                      "noDataMessage":  "No collector health observations in this selection. Scheduled heartbeat monitoring is not yet verified."
                                   },
                       "name":  "health-summary",
                       "type":  3
@@ -422,7 +424,7 @@
                                       "version":  "KqlItem/1.0",
                                       "title":  "Latest collector observations (maximum 50)",
                                       "query":  "let selectedRepository = base64_decode_tostring(\u0027{Repository:base64}\u0027);\nlet H = NWBCollectorHealth_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(UpdatedAt, *) by Repository, Collector, CheckId\n| where selectedRepository == \u0027*\u0027 or Repository == selectedRepository;\nH\n| top 50 by TimeGenerated desc\n| project TimeGenerated, Repository, Operation, Outcome, DetailCode, SourceRunId,\n    SourceRunAttempt, CollectorRunId",
-                                      "size":  0,
+                                      "size":  3,
                                       "queryType":  0,
                                       "resourceType":  "microsoft.operationalinsights/workspaces",
                                       "crossComponentResources":  [
@@ -432,7 +434,7 @@
                                       "visualization":  "table",
                                       "showRefreshButton":  true,
                                       "showExportToExcel":  true,
-                                      "noDataMessage":  "No matching observations. Check the filters and collection status; no data does not mean healthy."
+                                      "noDataMessage":  "No collector health observations in this selection. Check health publication and the collection window."
                                   },
                       "name":  "health-detail",
                       "type":  3
@@ -450,7 +452,7 @@
                                       "version":  "KqlItem/1.0",
                                       "title":  "Confirmed deployment facts collected in the window (maximum 100)",
                                       "query":  "let selectedRepository = base64_decode_tostring(\u0027{Repository:base64}\u0027);\nlet selectedWorkflow = base64_decode_tostring(\u0027{Workflow:base64}\u0027);\nlet selectedEnvironment = base64_decode_tostring(\u0027{Environment:base64}\u0027);\nlet D = NWBDeploymentFacts_CL\n| where TimeGenerated {TimeRange}\n| summarize arg_max(UpdatedAt, *) by Repository, DeploymentId\n| where selectedRepository == \u0027*\u0027 or Repository == selectedRepository\n| where selectedWorkflow == \u0027*\u0027 or PipelineName == selectedWorkflow\n| where selectedEnvironment == \u0027*\u0027 or Environment == selectedEnvironment;\nD\n| top 100 by DeployedAt desc\n| project DeployedAt, CollectedAt=TimeGenerated, Repository, Service, Environment,\n    DeploymentId, PipelineName, ReachedProduction, ClassificationKnown,\n    ReworkClassificationKnown, CommitSha, RunUrl",
-                                      "size":  0,
+                                      "size":  3,
                                       "queryType":  0,
                                       "resourceType":  "microsoft.operationalinsights/workspaces",
                                       "crossComponentResources":  [
@@ -460,7 +462,7 @@
                                       "visualization":  "table",
                                       "showRefreshButton":  true,
                                       "showExportToExcel":  true,
-                                      "noDataMessage":  "No matching observations. Check the filters and collection status; no data does not mean healthy.",
+                                      "noDataMessage":  "No confirmed deployment records in this selection. Validate deployment evidence and environment mappings with the application team.",
                                       "gridSettings":  {
                                                            "formatters":  [
                                                                               {

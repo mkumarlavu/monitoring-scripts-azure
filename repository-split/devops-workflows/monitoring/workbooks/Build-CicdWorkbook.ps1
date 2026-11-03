@@ -14,19 +14,28 @@ function Add-Text([string]$Name, [string]$Text) {
 }
 function Add-Query([string]$Name, [string]$Title, [string]$Query, [string]$Visual='table', [bool]$RunLinks=$false) {
     $content = [ordered]@{
-        version='KqlItem/1.0'; title=$Title; query=$Query; size=0
+        # Full/content height for grids and tiles avoids a fixed empty panel below short results.
+        version='KqlItem/1.0'; title=$Title; query=$Query; size=3
         queryType=0; resourceType='microsoft.operationalinsights/workspaces'
         crossComponentResources=@($WorkspaceResourceId)
         timeContextFromParameter='TimeRange'; visualization=$Visual
         showRefreshButton=$true; showExportToExcel=$true
         noDataMessage='No matching observations. Check the filters and collection status; no data does not mean healthy.'
     }
+    if ($Visual -eq 'timechart') { $content.size=0 }
+    switch ($Name) {
+        'failed-runs' { $content.noDataMessage='No failed or timed-out attempts in the collected records for these filters. Check Workflow attempts above to confirm there is data.' }
+        'execution-failures' { $content.noDataMessage='No failed or timed-out jobs or steps in the collected records for these filters. Check the Jobs and Steps totals above.' }
+        'deployments' { $content.noDataMessage='No confirmed deployment records in this selection. Validate deployment evidence and environment mappings with the application team.' }
+        'health-summary' { $content.noDataMessage='No collector health observations in this selection. Scheduled heartbeat monitoring is not yet verified.' }
+        'health-detail' { $content.noDataMessage='No collector health observations in this selection. Check health publication and the collection window.' }
+    }
     if ($Visual -eq 'tiles') {
         $content.tileSettings=@{
             titleContent=@{columnMatch='Metric'}
-            leftContent=@{columnMatch='Value'; formatter=1}
+            leftContent=@{columnMatch='Value'; formatter=12}
             subtitleContent=@{columnMatch='Detail'}
-            showBorder=$true
+            showBorder=$true; size='auto'
         }
     }
     if ($RunLinks) {
@@ -43,6 +52,8 @@ Add-Text 'intro' @'
 Workflow results, jobs and steps collected from GitHub. Start with the summary, then open a run in GitHub to investigate.
 
 **Reporting window = collection time (UTC).** Historical runs replayed today appear today. Counts describe observed attempts, not all GitHub activity or production deployment frequency. Repeated observations are deduplicated within the selected window; separate rerun attempts remain separate.
+
+The daily chart includes zero-observation days. Zero means nothing was collected for that day in this selection; it does not prove that no workflow ran. Review small samples before treating success rates or percentiles as a baseline.
 '@
 $parameters=@(
     @{id='time-range'; version='KqlParameterItem/1.0'; name='TimeRange'; label='Collected during'; type=4; isRequired=$true
@@ -109,7 +120,9 @@ W
 '@) 'tiles'
 Add-Query 'outcome-trend' 'Observed attempts by collection day and outcome (UTC)' ($workflowBase+@'
 W
-| summarize Attempts=count() by bin(TimeGenerated,1d), Conclusion
+| make-series Attempts=count() default=0 on TimeGenerated
+    from startofday({TimeRange:start}) to {TimeRange:end} step 1d by Conclusion
+| mv-expand TimeGenerated to typeof(datetime), Attempts to typeof(long)
 | order by TimeGenerated asc
 '@) 'timechart'
 Add-Query 'workflow-comparison' 'Workflow comparison' ($workflowBase+@'
@@ -125,7 +138,7 @@ Add-Query 'recent-runs' 'Latest collected attempts (maximum 100)' ($workflowBase
 W
 | top 100 by TimeGenerated desc
 | project CollectedAt=TimeGenerated, Repository, PipelineName, Environment, RunId, RunAttempt,
-    Conclusion, StartedAt, CompletedAt, DurationSeconds, SourceUpdatedAt, IsDeploymentPipeline, RunUrl
+    Conclusion, CompletedAt, DurationSeconds, RunUrl
 '@) 'table' $true
 Add-Query 'failed-runs' 'Failed or timed-out application attempts (maximum 100)' ($workflowBase+@'
 W

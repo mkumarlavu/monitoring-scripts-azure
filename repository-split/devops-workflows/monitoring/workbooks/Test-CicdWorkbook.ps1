@@ -25,6 +25,9 @@ foreach ($item in $queries) {
     Assert ($c.query.Contains('summarize arg_max(UpdatedAt, *)')) "Missing observation deduplication: $($item.name)"
     Assert ($c.query.Contains("base64_decode_tostring('{Repository:base64}')")) "Unsafe repository substitution: $($item.name)"
     Assert (-not $c.query.Contains('REPLACE_')) "Placeholder in query: $($item.name)"
+    if ($c.visualization -in @('table','tiles')) {
+        Assert ($c.size -eq 3) "Table/tile panel should fit its content: $($item.name)"
+    }
     foreach ($match in [regex]::Matches($c.query,'\{([A-Za-z]+)(?::[A-Za-z]+)?\}')) {
         Assert ($parameterNames -contains $match.Groups[1].Value) "Undefined parameter in $($item.name)"
     }
@@ -47,6 +50,10 @@ $summary=($queries | Where-Object name -eq 'workflow-kpis').content.query
 Assert ($summary.Contains('Attempts == 0, real(null)')) 'Empty success-rate denominator must be guarded.'
 Assert ($summary.Contains("'No data'")) 'Unknown rates/durations must be labelled.'
 Assert (-not $summary.Contains('coalesce(DurationSeconds,0)')) 'Missing timing must not become zero.'
+$trend=($queries | Where-Object name -eq 'outcome-trend').content.query
+Assert ($trend.Contains('make-series Attempts=count() default=0')) 'Sparse daily trend must explicitly include zero-observation bins.'
+Assert ($trend.Contains('from startofday({TimeRange:start}) to {TimeRange:end} step 1d')) 'Trend bins must span the selected UTC calendar days.'
+Assert ($trend.Contains('mv-expand TimeGenerated to typeof(datetime), Attempts to typeof(long)')) 'Trend must expand aligned time/count arrays into typed rows.'
 
 # Regeneration must reproduce the checked-in artifact; do not overwrite it during this check.
 $temporary=Join-Path ([IO.Path]::GetTempPath()) ('nwb-workbook-'+[guid]::NewGuid().ToString()+'.json')

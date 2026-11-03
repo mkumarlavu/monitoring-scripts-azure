@@ -2,7 +2,7 @@
 
 This is an Azure Workbook that reads the existing Northwest Log Analytics tables. You can import it now and see the workflow, job and step records already collected. It does not need changes to Chinchia's application pipeline to display those records.
 
-The workbook is prepared locally. Importing it, saving it in Northwest Azure and checking the rendered queries are still required. No Azure resource has been created by the generator.
+The first version was imported into Northwest Azure. The screenshots shared on 3 November show two successful workflow attempts, eight jobs, 83 steps and two collection-health observations. The local revision improves layout and the daily trend; it still needs to be imported and checked in the portal. No Azure resource is created or updated by the generator.
 
 ## Files to copy
 
@@ -16,6 +16,19 @@ Copy this folder into `northwest/devops-workflows/monitoring/workbooks/`:
 | `README.md` | Installation, metric definitions and acceptance checks. |
 
 Nothing from this folder goes into `doc_extraction`. The application repository keeps its caller workflows and `config/nwb-observability/collector.json`.
+
+`monitoring/config/stage-mapping-example.json` is a reference, not a live configuration file. Use its structure to add reviewed mappings to `doc_extraction/config/nwb-observability/collector.json`. Copying the example into `devops-workflows` does not change the classifications of collected records.
+
+## Update the workbook already imported
+
+1. Copy the entire revised `nwb-cicd-monitoring.workbook.json` file, from the first `{` to the final `}`. Do not copy the PowerShell files or README into Azure.
+2. Open the existing **NWB CI/CD Monitoring** workbook. Select **Edit**, then **Advanced Editor** (`</>`).
+3. Choose **Gallery Template** if prompted. Replace the workbook JSON and select **Apply**.
+4. Check the panels, select **Save**, then **Done Editing**. Reset browser zoom to 100% with **Ctrl+0** if text is still very small.
+5. Confirm that tiles show readable values and short grids do not reserve large empty panels. The daily trend now includes zero-observation days instead of connecting two isolated observations with a flat line. Zero observations does not establish zero application activity.
+6. Confirm that `No data` and percentage values remain readable in the tiles. Test a filter with no records as well as the known application workflow.
+
+This revision uses content-height tables/tiles, automatically sized tiles, larger value rendering, fewer columns in the latest-attempt grid and specific messages for empty failure, deployment and health sections. The generator and offline checks have no Azure connection; visual confirmation is still required after applying the revision.
 
 ## Create the dashboard in Azure
 
@@ -54,6 +67,7 @@ No sample records or made-up values are included. Empty health or deployment sec
 ## How the numbers are calculated
 
 - **Reporting period:** the time picker filters `TimeGenerated`, which our collectors set to observation time. Replaying July's Copilot run in October makes it an October observation; it is not an October deployment. Actual workflow and deployment timestamps remain visible in detail tables.
+- **Daily chart:** UTC calendar-day bins span the selected time window. Empty bins for an observed outcome display zero collected attempts; these do not imply there were no GitHub runs. The first and last bins may represent partial days. If the whole selection has no observations, the chart has no series.
 - **Deduplication:** each panel selects the newest `UpdatedAt` within its collection window. Workflow key: Repository + RunId + RunAttempt. Execution key: Repository + RunId + RunAttempt + JobId + RecordType + StepNumber. Deployment key: Repository + DeploymentId. Health key: Repository + Collector + CheckId. The counts can differ across reporting windows if a run is collected in both windows; this is not an all-time deduplication store.
 - **Reruns:** different attempt numbers remain separate. These are attempt success rates, not the final success rate after all retries. Latest-attempt-only reporting would be a separate metric.
 - **Success rate:** successful attempts divided by all observed attempts in scope. Cancelled, skipped and other outcomes remain in the denominator and also have separate tiles. When there are no attempts, the rate displays `No data`.
