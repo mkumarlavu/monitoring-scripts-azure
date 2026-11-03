@@ -1,0 +1,11 @@
+{
+  "StageMappings": {
+    ".github/workflows/delivery.yml": [
+      { "JobName": "changes", "Stage": "Change detection" },
+      { "JobName": "build", "Stage": "Build" },
+      { "JobName": "deployment-contracts", "Stage": "Deployment validation" },
+      { "JobName": "Delivery check", "Stage": "Delivery validation" },
+      { "JobName": "validate / Tests, quality and dependencies", "Stage": "Validation" }
+    ]
+  }
+}
