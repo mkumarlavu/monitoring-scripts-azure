@@ -90,6 +90,16 @@ try{
     $last=$global:NwbExecutionTest.posts[-1].Data[0]
     Check ($last.Operation -eq 'collection' -and $last.Outcome -eq 'success') 'Collection health reports component success'
     Check ((($last.PSObject.Properties.Name | Sort-Object) -join ',') -eq (($schemas.NWBCollectorHealth_CL.PSObject.Properties.Name | Sort-Object) -join ',')) 'Health payload matches declared schema columns'
+    $savedPath=$run.path;$savedJobName=$job.name
+    $profileConfig=Join-Path ([IO.Path]::GetTempPath()) ('nwb-profile-test-'+[guid]::NewGuid().ToString('N')+'.json')
+    try {
+        '{"DefaultService":"test","CollectPipelineExecution":true,"PublishHealth":true,"StageProfiles":{".github/workflows/delivery.yml":"nwb-delivery"},"StageMappings":{},"DeploymentEnvironments":{}}' | Set-Content -LiteralPath $profileConfig -Encoding UTF8
+        $run.path='.github/workflows/delivery.yml';$job.name='build';$global:NwbExecutionTest.posts=@()
+        & (Join-Path $scripts 'Invoke-CicdCollection.ps1') -RunId 123 -RunAttempt 2 -ConfigPath $profileConfig -Publish | Out-Null
+        $executionPosts=@($global:NwbExecutionTest.posts | Where-Object Uri -like '*Custom-NWBPipelineExecution_CL*')
+        Check ($executionPosts.Count -eq 4 -and $executionPosts[0].Data[0].Stage -ceq 'Build') 'Integrated caller profile reaches published execution records'
+        Check ($executionPosts[0].Data[0].Environment -eq 'unclassified') 'Shared stages do not change environment classification'
+    } finally { $run.path=$savedPath;$job.name=$savedJobName;Remove-Item -LiteralPath $profileConfig -ErrorAction SilentlyContinue }
     $global:NwbExecutionTest.mode='execution-error';$global:NwbExecutionTest.posts=@()
     Reject {& (Join-Path $scripts 'Invoke-CicdCollection.ps1') -RunId 123 -RunAttempt 2 -ConfigPath (Join-Path $root 'config/nwb-observability/collector.json') -Publish -WarningAction SilentlyContinue} 'Pipeline execution: Request failed'
     Check ($global:NwbExecutionTest.posts[-1].Data[0].Outcome -eq 'failure' -and $global:NwbExecutionTest.posts[-1].Data[0].DetailCode -eq 'execution') 'Partial ingestion failure still publishes failure health without error body'

@@ -2,6 +2,8 @@
 
 This is an Azure Workbook that reads the existing Northwest Log Analytics tables. You can import it now and see the workflow, job and step records already collected. It does not need changes to Chinchia's application pipeline to display those records.
 
+Keep this Workbook for the current monitoring. An optional [Grafana view inside Azure Monitor](../grafana/README.md) reuses these queries without a separate Grafana service. [Shared stage profiles](../docs/SHARED-PROFILES-AND-DASHBOARDS.md) supply stage labels during collection; refreshing either dashboard then shows the new observations. This update does not require reimporting the Workbook.
+
 The first version was imported into Northwest Azure. The screenshots shared on 3 November show two successful workflow attempts, eight jobs, 83 steps and two collection-health observations. The local revision improves layout and the daily trend; it still needs to be imported and checked in the portal. No Azure resource is created or updated by the generator.
 
 ## Files to copy

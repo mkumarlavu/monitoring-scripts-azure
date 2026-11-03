@@ -1,0 +1,14 @@
+{
+  "SchemaVersion": 1,
+  "Profiles": {
+    "nwb-delivery": {
+      "Rules": [
+        { "JobName": "changes", "Stage": "Change detection" },
+        { "JobName": "build", "Stage": "Build" },
+        { "JobName": "deployment-contracts", "Stage": "Deployment validation" },
+        { "JobName": "Delivery check", "Stage": "Delivery validation" },
+        { "JobName": "validate / Tests, quality and dependencies", "Stage": "Validation" }
+      ]
+    }
+  }
+}

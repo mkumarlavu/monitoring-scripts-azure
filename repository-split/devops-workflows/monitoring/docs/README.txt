@@ -82,6 +82,9 @@ https://docs.github.com/en/actions/tutorials/create-actions/create-a-composite-a
 https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-with-reusable-workflows
 
 WORKFLOW DISCOVERY
+Shared stage profiles are now optional. See SHARED-PROFILES-AND-DASHBOARDS.md
+for the central catalog, caller selection and rollout order. A profile classifies
+only its selected workflow and does not determine deployment/environment meaning.
 GitHub supplies workflow IDs, names, paths, jobs and steps automatically. Empty
 WorkflowMappings and StageMappings are supported. Optional classifications can
 use exact workflow file paths instead of numeric IDs. Existing numeric mappings

@@ -4,6 +4,8 @@ Updated: 3 November 2026
 
 Dashboard: [Azure Workbook installation and metric definitions](monitoring/workbooks/README.md). The first import displays real workflow, execution and collection-health data in the user's Azure screenshots. The revised local layout and daily trend need to be applied to that workbook and checked.
 
+Next update: [shared profiles and dashboard rollout](monitoring/docs/SHARED-PROFILES-AND-DASHBOARDS.md). Shared stage rules are bundled with the central action; callers select a profile by workflow path and can retain local overrides. The existing Workbook stays in place. An additional [Azure Monitor Grafana dashboard](monitoring/grafana/README.md) is prepared for import into the portal's built-in experience, with no separate Managed Grafana instance. Its live import and rendering still need validation.
+
 PR 7 follow-up: the workflow publisher now includes `SourceUpdatedAt` for alert recency. Add this datetime column to the existing workflow table and DCR before publishing the updated code. See [review fixes and schema update](monitoring/docs/PR-7-REVIEW-NOTES.md) for the copy list, Azure steps and verified-commit merge blocker.
 
 This guide explains what we have built, where the files belong, and how to set up and run the monitoring. The first application repository is `northwest/doc_extraction`. The shared implementation lives in `northwest/devops-workflows`, and its `main` branch is the source of truth.
@@ -155,6 +157,7 @@ All paths in this table are under [actions/nwb-cicd-monitoring/scripts](actions/
 | `CollectorHealth.ps1` | Builds health records with source and collector identifiers. |
 | `NwbTransport.ps1` | Common GitHub context, pagination, limited HTTP retries and Azure publication functions. |
 | `NwbRepository.ps1` | Validates the Northwest repository name used in records and API paths. |
+| `NwbStageProfiles.ps1` | Resolves a selected central stage profile and merges exact local job/step overrides. |
 | `Show-OidcClaims.ps1` | Prints issuer, subject and audience for federation setup. It does not print the JWT. |
 | `Invoke-WorkflowEvent.ps1` | Legacy entry point retained for compatibility/tests. The current shared workflows do not call it. |
 | `Initialize-PowerShell.ps1` | Finds and checks administrator-installed PowerShell 7, then adds its directory to the PATH for subsequent job steps. Never downloads or installs software. |
@@ -539,6 +542,7 @@ From the `devops-workflows` repository root, run the existing offline checks in 
 ./monitoring/tests/Test-WorkflowCollector.ps1
 ./monitoring/tests/Test-CicdCollection.ps1
 ./monitoring/tests/Test-PipelineExecution.ps1
+./monitoring/tests/Test-StageProfiles.ps1
 ./monitoring/tests/Test-MultiRepository.ps1
 ./monitoring/tests/Test-ReviewFixes.ps1
 ./monitoring/tests/Test-PowerShellBootstrap.ps1

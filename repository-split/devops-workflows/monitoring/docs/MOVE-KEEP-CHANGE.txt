@@ -17,7 +17,10 @@ WHAT GOES IN DEVOPS-WORKFLOWS
 .github/workflows/nwb-cicd-collector-reusable.yml
 .github/workflows/nwb-collector-health-reusable.yml
 actions/nwb-cicd-monitoring/action.yml
-actions/nwb-cicd-monitoring/scripts/  (all 15 files)
+actions/nwb-cicd-monitoring/scripts/  (all bundled scripts)
+actions/nwb-cicd-monitoring/profiles/ (shared stage catalog)
+monitoring/workbooks/                (Azure Workbook)
+monitoring/grafana/                  (built-in Azure Monitor Grafana view)
 monitoring/infra/                    (shared schema/alert source; no redeploy now)
 monitoring/queries/                  (dashboard and alert queries)
 monitoring/tests/                    (offline tests)

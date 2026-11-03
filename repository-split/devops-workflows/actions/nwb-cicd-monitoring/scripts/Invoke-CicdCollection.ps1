@@ -44,8 +44,8 @@ try {
 } catch { $failedComponents+='workflow';$failures+='Workflow collection: '+$_.Exception.Message }
 if($config.PSObject.Properties['CollectPipelineExecution'] -and $config.CollectPipelineExecution){
     try {
-        $stageMappings=[pscustomobject]@{}
-        if($config.PSObject.Properties['StageMappings']){$stageMappings=$config.StageMappings}
+        . (Join-Path $PSScriptRoot 'NwbStageProfiles.ps1')
+        $stageMappings=Resolve-NwbStageMappings -Config $config -Run $run
         & (Join-Path $PSScriptRoot 'Send-PipelineExecution.ps1') -Run $run -Service $service -Environment $environment -StageMappings $stageMappings -Publish:$Publish
     } catch {$failedComponents+='execution';$failures+='Pipeline execution: '+$_.Exception.Message}
 }

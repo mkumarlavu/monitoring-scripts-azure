@@ -1,5 +1,7 @@
 # Apply the initial delivery stage mappings
 
+For the shared approach, follow [shared profiles and dashboard rollout](../docs/SHARED-PROFILES-AND-DASHBOARDS.md). The same five rules now live in the central `nwb-delivery` profile. The JSON beside this document remains a manual override/reference fragment; it is not needed when selecting that profile.
+
 The adjacent `doc-extraction-stage-mapping-draft.json` is a proposed mapping based on complete job names shown in the user's Azure screenshots for run `323897996`. Review the labels with Chinchia. It is not loaded by the collector from this directory.
 
 1. In Northwest `doc_extraction`, open `config/nwb-observability/collector.json` on a working branch.

@@ -3,6 +3,7 @@
   "CollectPipelineExecution": true,
   "PublishHealth": true,
   "WorkflowMappings": {},
+  "StageProfiles": {},
   "StageMappings": {},
   "DeploymentEnvironments": {}
 }
