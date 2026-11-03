@@ -1,6 +1,8 @@
 # Northwest CI/CD monitoring
 
-Updated: 26 October 2026
+Updated: 3 November 2026
+
+Dashboard: [Azure Workbook installation and metric definitions](monitoring/workbooks/README.md). The import JSON is ready locally; saving and validating it in Northwest Azure is the next step.
 
 PR 7 follow-up: the workflow publisher now includes `SourceUpdatedAt` for alert recency. Add this datetime column to the existing workflow table and DCR before publishing the updated code. See [review fixes and schema update](monitoring/docs/PR-7-REVIEW-NOTES.md) for the copy list, Azure steps and verified-commit merge blocker.
 
@@ -15,15 +17,15 @@ For example, imagine the bank releases an update to the application that extract
 | Area | Current position |
 | --- | --- |
 | Azure resources | The workspace, DCE, managed identity, six custom tables and five DCRs have been created, based on the setup and deployment screenshots shared during implementation. |
-| Shared collection code | Prepared locally, with workflow, job, step, deployment and collector-health collection. |
-| Repository sharing | The organization access option has been selected for `devops-workflows`; confirm it was saved. |
-| Live collection | A successful end-to-end run of the shared version has not been verified in this guide. Complete the preview and publication checks below. |
-| Dashboards | Queries are included. A deployed dashboard is not included in this package. |
+| Shared collection code | Merged into Northwest `devops-workflows`, as reported by the user and exercised by the shared action in the supplied run logs. |
+| Repository sharing | The `doc_extraction` caller successfully loaded the shared action and reusable workflow. Other repositories still need onboarding. |
+| Live collection | Manual publication verified in Azure screenshots: Copilot run `138375551` and application run `323897996` (Validate and deliver through Dev). The latter showed success, 331 seconds and 68 job/step rows on 3 November. Automatic collection and deployment evidence still need separate validation. |
+| Dashboards | An importable Azure Workbook with 20 summary tiles and supporting charts/tables is included under `monitoring/workbooks`. Portal import and live query/rendering validation are pending. |
 | Alerts | Three disabled alert templates are included. Enabling and testing them is still required. |
 | DORA | Some supporting fields and tables exist. Complete DORA calculations and source integrations are still required. |
 | ServiceNow | No ServiceNow ticket-creation integration has been implemented in this package. |
 
-Local checks use mocked GitHub and Azure responses. They do not prove that the Northwest runner, federation, network or live ingestion is working. Update this section with the run link and validation date after the first successful rollout.
+Local checks use mocked GitHub and Azure responses. The live validation above comes from the user's GitHub and Azure screenshots, not from those tests. The validated application run is https://northwest.ghe.com/northwest/doc_extraction/actions/runs/323897996. Stage labels remain unmapped and the environment unclassified until reviewed configuration is added.
 
 ## 2. How the data reaches Azure
 
