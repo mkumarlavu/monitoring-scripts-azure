@@ -2,7 +2,7 @@
 
 Use **Azure Monitor > Dashboards with Grafana**. Microsoft provides this dashboard experience inside the Azure portal at no additional dashboard charge. It does not require an Azure Managed Grafana instance. Log Analytics ingestion, retention and any applicable query or alert charges still apply. [Microsoft comparison](https://learn.microsoft.com/en-us/azure/azure-monitor/visualize/visualize-grafana-overview), [Azure Monitor pricing](https://azure.microsoft.com/en-us/pricing/details/monitor/).
 
-This dashboard is prepared locally and has passed offline definition checks. It has not yet been imported or tested in Northwest Azure. The existing Azure Workbook remains usable while this view is validated.
+The first Northwest import exposed a query interpolation error (`SYN0002` at `northwest`). The generator now uses quoted KQL string literals for the text filters. This correction is checked offline; reimport and verify the live panels. The existing Azure Workbook remains usable during validation.
 
 ## Import step by step
 
@@ -10,7 +10,7 @@ This dashboard is prepared locally and has passed offline definition checks. It 
 2. In Azure Portal, open **Monitor > Dashboards with Grafana**.
 3. Select **New > Import**, choose the JSON file, then select **Load**.
 4. If asked for the `Azure Monitor` data source, select the built-in Azure Monitor source. The JSON has a data-source input for this binding; no client secret or collector identity should be entered.
-5. Use the title **Northwest CI/CD monitoring**, subscription **NWPROD-SUB**, resource group **prd-cicdobservability-rg-eus2**, and location **East US 2**. Complete the import/save prompts.
+5. Use the title **nwb-cicd-monitoring**, subscription **NWPROD-SUB**, resource group **prd-cicdobservability-rg-eus2**, and location **East US 2**. Complete the import/save prompts. The resource name cannot contain spaces or `/`. When replacing an existing dashboard, use the update/overwrite option if offered. Otherwise import as **nwb-cicd-monitoring-v2** to validate without deleting the existing dashboard.
 6. Keep the time range at **Last 7 days**. Set Repository to `northwest/doc_extraction`, Workflow to `*`, and Environment to `*`. The text filters accept an exact value or `*` for all.
 7. Confirm that workflow and execution records match the Workbook for the same filters and time window. Check the source run `323897996` if it is still in the selected collection window; otherwise use the latest published application run.
 8. Check **Stage outcomes** after a new publication using the shared stage profile. `unmapped` means no matching label; it is not a collection failure.
@@ -50,4 +50,4 @@ For another workspace, pass its full resource ID to the Workbook generator first
 
 Grafana alerts are not supported in this embedded Azure Monitor experience. Continue implementing alerts through **Azure Monitor alert rules and action groups**; ServiceNow integration remains separate work. Importing this dashboard creates neither alerts nor incidents.
 
-The queries use Grafana's [Azure Monitor time macros](https://grafana.com/docs/grafana/latest/datasources/azure-monitor/query-editor/) and JSON-formatted text variables. The dashboard contains no credentials. Automatic refresh is off initially; refresh manually during validation.
+The queries use Grafana's [Azure Monitor time macros](https://grafana.com/docs/grafana/latest/datasources/azure-monitor/query-editor/). Single-value text filters use [sqlstring formatting](https://grafana.com/docs/grafana/latest/visualizations/dashboards/variables/variable-syntax/#sqlstring) inside [KQL verbatim string literals](https://learn.microsoft.com/en-us/kusto/query/scalar-data-types/string). For example, `@${Repository:sqlstring}` should become `@'northwest/doc_extraction'`. Do not add extra quotes around the variable. The dashboard contains no credentials. Automatic refresh is off initially; refresh manually during validation.

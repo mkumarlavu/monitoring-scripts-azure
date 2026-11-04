@@ -13,7 +13,9 @@ $panels=[System.Collections.Generic.List[object]]::new()
 $id=0;$y=0
 function Convert-WorkbookQuery([string]$Query) {
     foreach ($name in @('Repository','Workflow','Environment')) {
-        $Query=$Query.Replace("base64_decode_tostring('{$($name):base64}')",('tostring(dynamic(${'+$name+':json}))'))
+        # sqlstring supplies quotes and doubles apostrophes. KQL verbatim strings
+        # use the same escaping and preserve literal backslashes in filter values.
+        $Query=$Query.Replace("base64_decode_tostring('{$($name):base64}')",('@${'+$name+':sqlstring}'))
     }
     $Query=$Query.Replace('TimeGenerated {TimeRange}','$__timeFilter(TimeGenerated)')
     $Query=$Query.Replace('{TimeRange:start}','$__timeFrom()').Replace('{TimeRange:end}','$__timeTo()')
@@ -61,12 +63,12 @@ foreach ($item in $workbook.items) {
 $variables=@()
 foreach ($name in @('Repository','Workflow','Environment')) {
     $value='*';if ($name -eq 'Repository') { $value='northwest/doc_extraction' }
-    # Single-value text boxes use JSON formatting inside KQL dynamic(), not raw substitution.
+    # Single-value text boxes are interpolated as KQL verbatim string literals.
     $variables+=@{name=$name;label="$name (exact name or *)";type='textbox';query=$value;current=@{text=$value;value=$value};options=@(@{text=$value;value=$value;selected=$true});hide=0;skipUrlSync=$false}
 }
 $dashboard=[ordered]@{
     '__inputs'=@(@{name='DS_AZURE_MONITOR';label='Azure Monitor';description='Select the built-in Azure Monitor data source in Azure Monitor dashboards with Grafana.';type='datasource';pluginId='grafana-azure-monitor-datasource';pluginName='Azure Monitor'})
-    id=$null;uid='nwb-cicd-monitoring';title='Northwest CI/CD monitoring';schemaVersion=39;version=1
+    id=$null;uid='nwb-cicd-monitoring';title='nwb-cicd-monitoring';schemaVersion=39;version=1
     description='Workflow, job, step and collector observations from the existing Log Analytics workspace. Collection-time reporting; production DORA metrics are not yet validated.'
     tags=@('NWB','CI/CD');timezone='utc';editable=$true;refresh=''
     time=@{from='now-7d';to='now'};timepicker=@{refresh_intervals=@('5m','15m','1h')}
