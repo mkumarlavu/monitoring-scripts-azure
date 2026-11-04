@@ -133,3 +133,14 @@ NWBCollectorHealth_CL
 | where Repository == "northwest/doc_extraction"
 | project TimeGenerated, Operation, Outcome, DetailCode
 | order by TimeGenerated desc
+
+
+
+NWBPipelineExecution_CL
+| where TimeGenerated > ago(7d)
+| where Repository == "northwest/doc_extraction"
+| where RecordType == "Job"
+| summarize arg_max(UpdatedAt, *) by WorkflowPath, JobName
+| where StageMappingKnown == false
+| project WorkflowPath, JobName
+| order by WorkflowPath asc, JobName asc
