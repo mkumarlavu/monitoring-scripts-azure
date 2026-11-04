@@ -20,6 +20,19 @@ Microsoft's [portal import and sharing instructions](https://learn.microsoft.com
 
 ## What the files do
 
+The overview now shows workflow KPI cards, a daily stacked chart, an outcome donut,
+slow-job and slow-step bars, stage outcomes, workflow success rates and heartbeat age.
+Only a small collector activity table is visible initially. Expand **Investigate runs**,
+**Detailed metrics**, or **Mappings, health and deployments** for the original tables
+and complete metrics. Definitions are in panel information tooltips rather than long
+paragraphs. The time window still means collection time, and production DORA remains
+unvalidated.
+
+After regenerating, import the updated JSON into Azure; a Git merge does not update
+an already saved dashboard. Check the charts, filters and expandable rows in the
+portal before sharing. Offline tests validate definitions and layout, not rendering
+in Azure's embedded Grafana version.
+
 | File | Purpose |
 | --- | --- |
 | `nwb-cicd-monitoring.grafana.json` | Generated Grafana dashboard for portal import. |
