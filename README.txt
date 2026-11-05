@@ -144,3 +144,12 @@ NWBPipelineExecution_CL
 | where StageMappingKnown == false
 | project WorkflowPath, JobName
 | order by WorkflowPath asc, JobName asc
+
+
+NWBCollectorHealth_CL
+| where TimeGenerated > ago(1h)
+| where Repository == "northwest/doc_extraction"
+| where Operation == "heartbeat"
+| project TimeGenerated, Outcome, DetailCode
+| order by TimeGenerated desc
+
