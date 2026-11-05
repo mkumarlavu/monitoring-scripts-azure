@@ -6,9 +6,10 @@ $ErrorActionPreference='Stop';Set-StrictMode -Version Latest
 $context=Get-NwbGitHubContext
 $records=@();$runs=@();$total=$null
 $workflow=[uri]::EscapeDataString('nwb-cicd-collector.yml')
-# Watch completed collector runs, including login failures that occur before its scripts.
+# Read unfiltered history: GitHub caps status-filtered searches at 1,000 runs.
+# Select completed runs locally, including failures before collector scripts start.
 for($page=1;$page -le 100;$page++){
-    $result=Invoke-SafeRequest -Uri "$($context.Base)/actions/workflows/$workflow/runs?status=completed&per_page=100&page=$page" -Headers $context.Headers
+    $result=Invoke-SafeRequest -Uri "$($context.Base)/actions/workflows/$workflow/runs?per_page=100&page=$page" -Headers $context.Headers
     $batch=@($result.workflow_runs)
     $runs += $batch
     if($null -eq $total){$total=[int]$result.total_count}
@@ -19,6 +20,7 @@ for($page=1;$page -le 100;$page++){
     if($page -eq 100){throw 'Collector health history pagination limit reached.'}
 }
 foreach($run in $runs){
+    if($run.status -ne 'completed'){continue}
     if([datetimeoffset]$run.updated_at -lt [datetimeoffset]::UtcNow.AddHours(-2) -or $run.conclusion -eq 'skipped'){continue}
     if([string]$run.id -notmatch '^[1-9][0-9]*$' -or $run.repository.full_name -cne $context.Repository){throw 'Unexpected collector run identity.'}
     $outcome='failure';if($run.conclusion -eq 'success'){$outcome='success'}

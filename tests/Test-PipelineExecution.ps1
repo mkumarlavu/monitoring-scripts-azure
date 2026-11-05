@@ -46,7 +46,15 @@ function Invoke-RestMethod {
         if($state.mode -eq 'execution-error' -and $Uri -like '*NWBPipelineExecution_CL*'){throw 'secret error body'}
         $state.posts+=[pscustomobject]@{Uri=$Uri;Data=([Text.Encoding]::UTF8.GetString($Body) | ConvertFrom-Json)};return
     }
-    if($Uri -like '*/actions/workflows/*/runs?*'){return [pscustomobject]@{total_count=$state.healthRuns.Count;workflow_runs=$state.healthRuns}}
+    if($Uri -like '*/actions/workflows/*/runs?*'){
+        $page=[int]([regex]::Match($Uri,'[?&]page=(\d+)').Groups[1].Value)
+        $available=@($state.healthRuns)
+        # Reproduce GitHub's 1,000-result cap for filtered searches.
+        if($Uri -match '[?&]status='){$available=@($available | Select-Object -First 1000)}
+        $batch=@($available | Select-Object -Skip (($page-1)*100) -First 100)
+        if($state.mode -eq 'health-truncated'){$batch=@()}
+        return [pscustomobject]@{total_count=$state.healthRuns.Count;workflow_runs=$batch}
+    }
     if($Uri -like '*/jobs?*'){
         if($state.mode -eq 'pagination'){
             if($Uri -like '*page=1'){return [pscustomobject]@{total_count=2;jobs=@($job)}}
@@ -89,12 +97,26 @@ try{
     Check ($global:NwbExecutionTest.posts.Count -eq 0) 'Watchdog preview does not publish'
     & $watchdog -Publish | Out-Null
     Check ($global:NwbExecutionTest.posts.Count -eq 1 -and $global:NwbExecutionTest.posts[0].Data[0].Operation -eq 'heartbeat') 'Quiet repository still gets watchdog heartbeat'
-    $failed=[pscustomobject]@{id=999;run_attempt=1;repository=$run.repository;updated_at=[datetimeoffset]::UtcNow.ToString('o');conclusion='failure'}
-    $skipped=[pscustomobject]@{id=998;run_attempt=1;repository=$run.repository;updated_at=[datetimeoffset]::UtcNow.ToString('o');conclusion='skipped'}
+    $failed=[pscustomobject]@{id=999;status='completed';run_attempt=1;repository=$run.repository;updated_at=[datetimeoffset]::UtcNow.ToString('o');conclusion='failure'}
+    $skipped=[pscustomobject]@{id=998;status='completed';run_attempt=1;repository=$run.repository;updated_at=[datetimeoffset]::UtcNow.ToString('o');conclusion='skipped'}
     $global:NwbExecutionTest.healthRuns=@($failed,$skipped);$global:NwbExecutionTest.posts=@()
     & $watchdog -Publish | Out-Null
     Check ($global:NwbExecutionTest.posts.Count -eq 2 -and $global:NwbExecutionTest.posts[0].Data[0].SourceRunId -eq '999') 'Watchdog catches failed collector runs and excludes skipped trigger runs'
     Check ($global:NwbExecutionTest.posts[-1].Data[0].Operation -eq 'heartbeat') 'Heartbeat publishes last'
+    $oldRun=[pscustomobject]@{id=100;status='completed';run_attempt=1;repository=$run.repository;updated_at=[datetimeoffset]::UtcNow.AddDays(-30).ToString('o');conclusion='success'}
+    $active=[pscustomobject]@{id=101;status='in_progress';run_attempt=1;repository=$run.repository;updated_at=[datetimeoffset]::UtcNow.ToString('o');conclusion=$null}
+    # A recently updated rerun can be on an old creation-order page.
+    $global:NwbExecutionTest.healthRuns=@($oldRun)*1000 + @($failed,$skipped,$active)
+    $global:NwbExecutionTest.posts=@();$global:NwbExecutionTest.calls=@()
+    & $watchdog -Publish | Out-Null
+    Check (@($global:NwbExecutionTest.calls | Where-Object {$_ -like '*/actions/workflows/*/runs?*'}).Count -eq 11) 'Watchdog reads past 1,000 runs'
+    Check (@($global:NwbExecutionTest.calls | Where-Object {$_ -match '[?&](status|created)='}).Count -eq 0) 'History query avoids capped filters and creation-date cutoff'
+    Check ($global:NwbExecutionTest.posts.Count -eq 2 -and $global:NwbExecutionTest.posts[0].Data[0].SourceRunId -eq '999') 'Old-page recent failure is observed; old, skipped and active runs are excluded'
+    Check ($global:NwbExecutionTest.posts[-1].Data[0].Operation -eq 'heartbeat') 'Large history still publishes heartbeat last'
+    $global:NwbExecutionTest.mode='health-truncated';$global:NwbExecutionTest.posts=@()
+    Reject {& $watchdog -Publish} 'history is truncated'
+    Check ($global:NwbExecutionTest.posts.Count -eq 0) 'Incomplete history never publishes a success heartbeat'
+    $global:NwbExecutionTest.mode='ok'
     $env:GITHUB_API_URL='https://untrusted.invalid';Reject {& $watchdog} 'Unexpected GitHub API host'
 }finally{foreach($name in $names){[Environment]::SetEnvironmentVariable($name,$saved[$name])}}
 Write-Output "Passed $script:passed pipeline/health offline checks. No live API requests."
