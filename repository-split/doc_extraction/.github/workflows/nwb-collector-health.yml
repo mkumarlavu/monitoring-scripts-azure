@@ -1,7 +1,9 @@
 name: NWB collector health
 on:
   schedule:
-    - cron: '7,22,37,52 * * * *'
+    # Daily at 1 PM and 5 PM Eastern, including daylight-saving changes.
+    - cron: '0 13,17 * * *'
+      timezone: America/New_York
   workflow_dispatch:
     inputs:
       publish:

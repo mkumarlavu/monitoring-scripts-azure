@@ -41,7 +41,7 @@
                                              "autoMitigate":  true,
                                              "evaluationFrequency":  "PT5M",
                                              "windowSize":  "PT1H",
-                                             "overrideQueryTimeRange":  "PT2H",
+                                             "overrideQueryTimeRange":  "P1D",
                                              "scopes":  [
                                                             "[parameters(\u0027workspaceResourceId\u0027)]"
                                                         ],
@@ -52,7 +52,7 @@
                                              "criteria":  {
                                                               "allOf":  [
                                                                             {
-                                                                                "query":  "// Expected row ensures this returns an alert row even when the table is empty.\n// Enable only after the scheduled watchdog has published successfully.\nlet expected = datatable(Repository:string, Collector:string)\n    [\u0027northwest/doc_extraction\u0027, \u0027nwb-cicd\u0027];\nexpected\n| join kind=leftouter (\n    NWBCollectorHealth_CL\n    | where TimeGenerated \u003e ago(2h) and Operation == \u0027heartbeat\u0027 and Outcome == \u0027success\u0027\n    | summarize LastHeartbeat=max(TimeGenerated) by Repository, Collector\n) on Repository, Collector\n| where isnull(LastHeartbeat) or LastHeartbeat \u003c ago(60m)\n| project Repository, Collector, LastHeartbeat\n",
+                                                                                "query":  "// Twice-daily checks at 13:00 and 17:00 America/New_York.\r\n// Allow the overnight gap (up to 21h at DST fallback), plus scheduling delay.\r\n// Expected row ensures this returns an alert row even when the table is empty.\n// Enable only after the scheduled watchdog has published successfully.\nlet expected = datatable(Repository:string, Collector:string)\n    [\u0027northwest/doc_extraction\u0027, \u0027nwb-cicd\u0027];\nexpected\n| join kind=leftouter (\n    NWBCollectorHealth_CL\n    | where TimeGenerated \u003e ago(24h) and Operation == \u0027heartbeat\u0027 and Outcome == \u0027success\u0027\n    | summarize LastHeartbeat=max(TimeGenerated) by Repository, Collector\n) on Repository, Collector\n| where isnull(LastHeartbeat) or LastHeartbeat \u003c ago(22h)\n| project Repository, Collector, LastHeartbeat\n",
                                                                                 "operator":  "GreaterThan",
                                                                                 "threshold":  0,
                                                                                 "timeAggregation":  "Count",
@@ -90,7 +90,7 @@
                                              "criteria":  {
                                                               "allOf":  [
                                                                             {
-                                                                                "query":  "// Re-observation of an old run must not make it a new failure.\n// The most recent rerun attempt takes precedence over earlier failures.\nNWBCollectorHealth_CL\n| where TimeGenerated \u003e ago(2h) and Operation == \u0027collector-run\u0027\n| summarize arg_max(UpdatedAt, *) by Repository, Collector, SourceRunId, SourceRunAttempt\n| summarize arg_max(SourceRunAttempt, *) by Repository, Collector, SourceRunId\n| where SourceUpdatedAt \u003e ago(1h) and Outcome == \u0027failure\u0027\n| project Repository, Collector, SourceRunId, SourceRunAttempt, DetailCode, SourceUpdatedAt\n",
+                                                                                "query":  "// Re-observation of an old run must not make it a new failure.\n// The most recent rerun attempt takes precedence over earlier failures.\nNWBCollectorHealth_CL\n| where TimeGenerated \u003e ago(2h) and Operation == \u0027collector-run\u0027\n| summarize arg_max(UpdatedAt, *) by Repository, Collector, SourceRunId, SourceRunAttempt\n| summarize arg_max(SourceRunAttempt, *) by Repository, Collector, SourceRunId\n| where SourceUpdatedAt \u003e ago(24h) and Outcome == \u0027failure\u0027\n| project Repository, Collector, SourceRunId, SourceRunAttempt, DetailCode, SourceUpdatedAt\n",
                                                                                 "operator":  "GreaterThan",
                                                                                 "threshold":  0,
                                                                                 "timeAggregation":  "Count",
