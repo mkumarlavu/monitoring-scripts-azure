@@ -1,0 +1,5 @@
+[
+  { "name": "Actor", "type": "string" },
+  { "name": "TriggeringActor", "type": "string" },
+  { "name": "RunNumber", "type": "string" }
+]

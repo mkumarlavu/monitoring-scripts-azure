@@ -45,6 +45,18 @@ function ConvertTo-WorkflowRecord {
         $completed = $last.UtcDateTime.ToString('o')
         $duration = [int][math]::Floor(($last - $first).TotalSeconds)
     }
+    # GitHub actor is the original initiator; triggering_actor may differ on reruns.
+    # Missing fields on older responses/fixtures remain unknown, never inferred.
+    $actor=''; $triggeringActor=''; $runNumber=''
+    if ($Run.PSObject.Properties['actor'] -and $Run.actor -and $Run.actor.PSObject.Properties['login']) {
+        $actor=[string]$Run.actor.login
+    }
+    if ($Run.PSObject.Properties['triggering_actor'] -and $Run.triggering_actor -and $Run.triggering_actor.PSObject.Properties['login']) {
+        $triggeringActor=[string]$Run.triggering_actor.login
+    }
+    if ($Run.PSObject.Properties['run_number'] -and [string]$Run.run_number -match '^[1-9][0-9]*$') {
+        $runNumber=[string]$Run.run_number
+    }
     return [pscustomobject][ordered]@{
         TimeGenerated = $ObservedAt.UtcDateTime.ToString('o')
         UpdatedAt = $ObservedAt.UtcDateTime.ToString('o')
@@ -54,6 +66,9 @@ function ConvertTo-WorkflowRecord {
         PipelineName = [string]$Run.name
         WorkflowPath = [string]$Run.path
         RunId = [string]$Run.id
+        RunNumber = $runNumber
+        Actor = $actor
+        TriggeringActor = $triggeringActor
         RunAttempt = [int]$Run.run_attempt
         CommitSha = [string]$Run.head_sha
         RunUrl = [string]$Run.html_url
