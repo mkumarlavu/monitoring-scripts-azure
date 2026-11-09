@@ -144,8 +144,8 @@ An accepted ingestion request alone does not prove the table rows are queryable.
 After successful previews and ingestion tests, set all four flags in step 6 true.
 The collector observes completed workflows in THIS repository. Monitoring
 workflows are excluded; skipped trigger entries may still appear in Actions.
-The watchdog requests a run every 15 minutes. GitHub scheduling can be delayed;
-the draft missing-heartbeat threshold is 60 minutes and must be tested locally.
+The watchdog requests runs daily at 1 PM and 5 PM America/New_York (Eastern), including DST. GitHub scheduling can be delayed;
+the draft missing-heartbeat threshold is 22 hours, with a 24-hour query lookback. Validate it before enabling alerts.
 Verify the first automatic run and at least two scheduled heartbeats.
 
 11. PREPARE ALERTS

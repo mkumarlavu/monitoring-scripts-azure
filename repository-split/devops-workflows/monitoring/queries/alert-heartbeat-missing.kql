@@ -1,3 +1,5 @@
+// Twice-daily checks at 13:00 and 17:00 America/New_York.
+// Allow the overnight gap (up to 21h at DST fallback), plus scheduling delay.
 // Expected row ensures this returns an alert row even when the table is empty.
 // Enable only after the scheduled watchdog has published successfully.
 let expected = datatable(Repository:string, Collector:string)
@@ -5,8 +7,8 @@ let expected = datatable(Repository:string, Collector:string)
 expected
 | join kind=leftouter (
     NWBCollectorHealth_CL
-    | where TimeGenerated > ago(2h) and Operation == 'heartbeat' and Outcome == 'success'
+    | where TimeGenerated > ago(24h) and Operation == 'heartbeat' and Outcome == 'success'
     | summarize LastHeartbeat=max(TimeGenerated) by Repository, Collector
 ) on Repository, Collector
-| where isnull(LastHeartbeat) or LastHeartbeat < ago(60m)
+| where isnull(LastHeartbeat) or LastHeartbeat < ago(22h)
 | project Repository, Collector, LastHeartbeat

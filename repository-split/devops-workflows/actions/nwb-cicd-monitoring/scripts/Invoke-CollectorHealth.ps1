@@ -21,7 +21,7 @@ for($page=1;$page -le 100;$page++){
 }
 foreach($run in $runs){
     if($run.status -ne 'completed'){continue}
-    if([datetimeoffset]$run.updated_at -lt [datetimeoffset]::UtcNow.AddHours(-2) -or $run.conclusion -eq 'skipped'){continue}
+    if([datetimeoffset]$run.updated_at -lt [datetimeoffset]::UtcNow.AddHours(-24) -or $run.conclusion -eq 'skipped'){continue}
     if([string]$run.id -notmatch '^[1-9][0-9]*$' -or $run.repository.full_name -cne $context.Repository){throw 'Unexpected collector run identity.'}
     $outcome='failure';if($run.conclusion -eq 'success'){$outcome='success'}
     $records+=New-NwbHealthRecord -Operation collector-run -Outcome $outcome -SourceRunId ([string]$run.id) -SourceRunAttempt ([int]$run.run_attempt) -SourceUpdatedAt ([datetimeoffset]$run.updated_at) -DetailCode ([string]$run.conclusion)

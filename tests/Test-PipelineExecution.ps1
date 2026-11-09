@@ -103,6 +103,15 @@ try{
     & $watchdog -Publish | Out-Null
     Check ($global:NwbExecutionTest.posts.Count -eq 2 -and $global:NwbExecutionTest.posts[0].Data[0].SourceRunId -eq '999') 'Watchdog catches failed collector runs and excludes skipped trigger runs'
     Check ($global:NwbExecutionTest.posts[-1].Data[0].Operation -eq 'heartbeat') 'Heartbeat publishes last'
+    # Twice-daily checks must still observe failures during the overnight gap.
+    $overnight=$failed.PSObject.Copy()
+    $overnight.updated_at=[datetimeoffset]::UtcNow.AddHours(-21).ToString('o')
+    $expired=$failed.PSObject.Copy()
+    $expired.id=997
+    $expired.updated_at=[datetimeoffset]::UtcNow.AddHours(-25).ToString('o')
+    $global:NwbExecutionTest.healthRuns=@($overnight,$expired);$global:NwbExecutionTest.posts=@()
+    & $watchdog -Publish | Out-Null
+    Check ($global:NwbExecutionTest.posts.Count -eq 2 -and $global:NwbExecutionTest.posts[0].Data[0].SourceRunId -eq '999') 'Overnight failure is observed; failures older than 24h are excluded'
     $oldRun=[pscustomobject]@{id=100;status='completed';run_attempt=1;repository=$run.repository;updated_at=[datetimeoffset]::UtcNow.AddDays(-30).ToString('o');conclusion='success'}
     $active=[pscustomobject]@{id=101;status='in_progress';run_attempt=1;repository=$run.repository;updated_at=[datetimeoffset]::UtcNow.ToString('o');conclusion=$null}
     # A recently updated rerun can be on an old creation-order page.

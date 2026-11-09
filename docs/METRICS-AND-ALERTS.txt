@@ -39,7 +39,7 @@ METRIC DEFINITIONS AND LIMITS
   collector and are visible to the watchdog. Manual replay is available. Durable
   reconciliation/backfill and guaranteed delivery are future work.
 - Jobs and API list reads are paginated with limits. The watchdog scans completed
-  collector history up to 100 pages and reports updates within two hours. It fails
+  collector history up to 100 pages and reports updates within 24 hours. It fails
   on the configured limit; large histories need a future cursor/reconciliation design.
 - Heartbeat success confirms watchdog API access and its health-stream write.
   It does not certify completeness of every application's data or other DCRs.
@@ -70,8 +70,8 @@ Action Groups; operations supplies ServiceNow routing and incident criteria.
 The three draft rules are stateful, disabled, severity 2 by default, evaluated
 every five minutes and require two failing evaluations. These are starting values,
 not an agreed bank SLA. Selected workflows use an empty allowlist until reviewed.
-Failures are observed within a one-hour window, with a two-hour query lookback.
-Heartbeat alerts require no successful watchdog heartbeat for 60 minutes, including
+Application failure alerts use a one-hour source window and two-hour query lookback. Collector failure alerts accept source updates within 24 hours, observed in the last two hours, to cover the twice-daily watchdog schedule.
+Heartbeat alerts use a 24-hour query lookback and require no successful watchdog heartbeat for 22 hours, including
 the case where the health table has never received a row. Enable only after setup.
 Rules aggregate matching rows; ServiceNow per-issue correlation is not implemented.
 When adding routing, agree an incident key such as repo/workflow/environment/rule

@@ -26,7 +26,7 @@ foreach($definition in $definitions){
             displayName=('NWB '+$definition.Name)
             description='CI/CD monitoring draft. Review ownership, thresholds and routing before enabling.'
             enabled=$false;severity=$definition.Severity;autoMitigate=$true
-            evaluationFrequency='PT5M';windowSize='PT1H';overrideQueryTimeRange='PT2H'
+            evaluationFrequency='PT5M';windowSize='PT1H';overrideQueryTimeRange=$(if($definition.Name -eq 'collector-heartbeat-missing'){'P1D'}else{'PT2H'})
             scopes=@("[parameters('workspaceResourceId')]");skipQueryValidation=$false
             actions=@{actionGroups="[parameters('actionGroupIds')]"}
             criteria=@{allOf=@(@{query=$query;timeAggregation='Count';operator='GreaterThan';threshold=0
