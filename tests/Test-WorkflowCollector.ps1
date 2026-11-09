@@ -28,6 +28,16 @@ Check ($record.DurationSeconds -eq 600) 'Parallel jobs use elapsed execution win
 Check ($record.RunAttempt -eq 2 -and $record.RunId -is [string]) 'Attempt and string run ID are preserved'
 Check ($record.DurationSeconds -is [int] -and $record.RunAttempt -is [int]) 'Integer fields match the input stream'
 Check ($null -eq $record.QueueSeconds) 'Unknown queue timing stays null'
+Check ($record.Actor -eq '' -and $record.TriggeringActor -eq '' -and $record.RunNumber -eq '') 'Absent actor and run number remain unknown'
+$run | Add-Member -NotePropertyName actor -NotePropertyValue ([pscustomobject]@{login='original-user'})
+$run | Add-Member -NotePropertyName triggering_actor -NotePropertyValue ([pscustomobject]@{login='retry-user'})
+$run | Add-Member -NotePropertyName run_number -NotePropertyValue 42
+$attributed=ConvertTo-WorkflowRecord @options
+Check ($attributed.Actor -ceq 'original-user' -and $attributed.TriggeringActor -ceq 'retry-user') 'Rerun initiator is distinct from original actor'
+Check ($attributed.RunNumber -ceq '42' -and $attributed.RunId -ceq '123') 'Workflow-local run number is separate from run ID'
+$run.actor=$null; $run.triggering_actor=$null; $run.run_number=0
+$unknown=ConvertTo-WorkflowRecord @options
+Check ($unknown.Actor -eq '' -and $unknown.TriggeringActor -eq '' -and $unknown.RunNumber -eq '') 'Null actors and invalid run numbers remain unknown'
 $run.status='in_progress'
 Expect-Failure {ConvertTo-WorkflowRecord @options} 'Only completed'
 $run.status='completed';$run.repository.full_name='wrong/repo'

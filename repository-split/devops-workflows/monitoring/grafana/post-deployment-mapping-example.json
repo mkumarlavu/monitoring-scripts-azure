@@ -1,0 +1,8 @@
+{
+  "Rules": [
+    { "JobName": "REPLACE_WITH_CONFIRMED_POST_DEPLOYMENT_JOB", "Stage": "Post-deployment verification" },
+    { "JobName": "REPLACE_WITH_DEDICATED_SMOKE_TEST_JOB", "Stage": "Smoke test" },
+    { "JobName": "REPLACE_WITH_MIXED_DEPLOYMENT_JOB", "StepName": "REPLACE_WITH_SMOKE_CHECK_STEP", "Stage": "Smoke test" },
+    { "JobName": "REPLACE_WITH_ROLLBACK_VERIFICATION_JOB", "Stage": "Rollback verification" }
+  ]
+}
