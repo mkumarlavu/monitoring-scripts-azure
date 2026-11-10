@@ -18,7 +18,12 @@ function Get-ReleaseTargetType([string]$ResourceId) {
 }
 
 function Get-ReleaseTarget($Config, [string]$Environment, [string]$ResourceId, $Evidence) {
-    $matches=@($Config.Targets | Where-Object { $_.Environment -ceq $Environment -and $_.ResourceId -ieq $ResourceId })
+    $knownTargets=@($Config.Targets | Where-Object { $_.ResourceId -ieq $ResourceId })
+    $matches=@($knownTargets | Where-Object { $_.Environment -ceq $Environment })
+    # Discovery must not bypass the reviewed policy for an already configured resource.
+    if($knownTargets.Count -gt 0 -and $matches.Count -eq 0) {
+        throw 'Release environment does not match the configured resource.'
+    }
     if($matches.Count -eq 0 -and (Get-ReleaseField $Config 'AllowDiscoveredTargets' $false) -eq $true) {
         if([string]::IsNullOrWhiteSpace($Environment) -or $Environment -ceq 'unclassified') { throw 'Discovered release evidence needs its actual environment.' }
         if((Get-ReleaseTargetType $ResourceId) -eq 'unknown') { throw 'Discovered release evidence needs an Azure resource ID or k8s://cluster/namespace/kind/name identity.' }

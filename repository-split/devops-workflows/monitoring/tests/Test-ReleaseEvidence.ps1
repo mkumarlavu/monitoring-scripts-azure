@@ -13,6 +13,21 @@ $config=Config; $report=Report
 $record=ConvertTo-ReleaseRecord $report $config $context -Now $now
 Check ($record.TargetType -eq 'Container App') 'Container App identity detected'
 $discovery=Get-Content (Join-Path $PSScriptRoot '../config/release-discovery.example.json') -Raw | ConvertFrom-Json
+$mixedConfig=Config
+$mixedConfig | Add-Member NoteProperty AllowDiscoveredTargets $true
+$mixedConfig | Add-Member NoteProperty RequiredChecks @()
+$mixedReport=Report
+$mixedReport | Add-Member NoteProperty Service 'payments'
+$mixedRecord=ConvertTo-ReleaseRecord $mixedReport $mixedConfig $context -Now $now
+Check ($mixedRecord.RequiredCheckCount -eq 2) 'Known targets retain explicit checks when discovery defaults are empty'
+$mixedReport.Environment='wrong-environment'
+Reject { ConvertTo-ReleaseRecord $mixedReport $mixedConfig $context -Now $now } 'Discovery cannot bypass a known target policy through an environment mismatch'
+$mixedReport.ResourceId=$mixedReport.ResourceId.ToUpperInvariant()
+Reject { ConvertTo-ReleaseRecord $mixedReport $mixedConfig $context -Now $now } 'ARM resource casing cannot bypass the environment guard'
+$mixedReport.ResourceId='k8s://bank-cluster/uat/Deployment/new-payments'
+$mixedReport.Environment='uat'
+$mixedRecord=ConvertTo-ReleaseRecord $mixedReport $mixedConfig $context -Now $now
+Check ($mixedRecord.Environment -ceq 'uat' -and $mixedRecord.Verification -eq 'not_configured') 'Unknown resources still use discovery defaults alongside explicit targets'
 $discoveredReport=Report
 $discoveredReport | Add-Member NoteProperty Service 'payments'
 foreach($item in @(

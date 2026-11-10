@@ -31,7 +31,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          sparse-checkout: config/nwb-observability
+          sparse-checkout: ${{ inputs.config_path }}
+          sparse-checkout-cone-mode: false
       - name: Sign in for read-only Azure inventory
         # Preview also reads Azure; it only skips publishing the snapshot.
         uses: azure/login@v2
