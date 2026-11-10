@@ -1,0 +1,51 @@
+name: NWB reusable version inventory
+on:
+  workflow_call:
+    inputs:
+      runner_labels:
+        required: true
+        type: string
+      publish:
+        default: false
+        type: boolean
+      config_path:
+        default: config/nwb-observability/release-targets.json
+        type: string
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  inventory:
+    if: >-
+      github.repository_owner == 'northwest' &&
+      github.server_url == 'https://northwest.ghe.com' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
+    runs-on: ${{ fromJSON(inputs.runner_labels) }}
+    environment:
+      name: cicd-observability
+      deployment: false
+    timeout-minutes: 15
+    steps:
+      - name: Read approved target configuration
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: config/nwb-observability
+      - name: Sign in for read-only Azure inventory
+        # Preview also reads Azure; it only skips publishing the snapshot.
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          audience: api://AzureADTokenExchange
+      - name: Observe active versions
+        uses: northwest/devops-workflows/actions/nwb-release-evidence@main
+        with:
+          operation: inventory
+          config_path: ${{ inputs.config_path }}
+          publish: ${{ inputs.publish }}
+        env:
+          AZURE_DCE_LOGS_ENDPOINT: ${{ vars.AZURE_DCE_LOGS_ENDPOINT }}
+          AZURE_RELEASE_DCR_IMMUTABLE_ID: ${{ vars.AZURE_RELEASE_DCR_IMMUTABLE_ID }}

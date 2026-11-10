@@ -1,0 +1,10 @@
+{
+  "SchemaVersion": 1,
+  "AllowDiscoveredTargets": true,
+  "Targets": [],
+  "RequiredChecks": [
+    { "Id": "smoke", "Kind": "Smoke test", "Operations": ["deploy", "rollback"] },
+    { "Id": "release-verification", "Kind": "Post-deployment verification", "Operations": ["deploy", "rollback"] },
+    { "Id": "rollback-verification", "Kind": "Rollback verification", "Operations": ["rollback"] }
+  ]
+}

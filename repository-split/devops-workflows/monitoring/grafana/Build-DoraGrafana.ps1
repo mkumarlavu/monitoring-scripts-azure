@@ -1,12 +1,21 @@
 [CmdletBinding()]
 param(
-    [string]$WorkbookPath=(Join-Path $PSScriptRoot '../workbooks/nwb-cicd-monitoring.workbook.json'),
-    [string]$OutputPath=(Join-Path $PSScriptRoot 'nwb-dora-monitoring.grafana.json')
+    [string]$WorkbookPath,
+    [string]$OutputPath=(Join-Path $PSScriptRoot 'nwb-dora-monitoring.grafana.json'),
+    [string]$WorkspaceResourceId='/subscriptions/18af3db6-624c-4522-9319-35501eb3fac0/resourceGroups/prd-cicdobservability-rg-eus2/providers/Microsoft.OperationalInsights/workspaces/prd-cicdobservability-law-eus2'
 )
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
-$workbook=Get-Content -LiteralPath $WorkbookPath -Raw | ConvertFrom-Json
-$workspace=$workbook.fallbackResourceIds[0]
+# Standalone by default; retain an explicit workbook override for existing callers.
+if ($WorkbookPath) {
+    if ($PSBoundParameters.ContainsKey('WorkspaceResourceId')) {throw 'Specify WorkbookPath or WorkspaceResourceId, not both.'}
+    $workbook=Get-Content -LiteralPath $WorkbookPath -Raw | ConvertFrom-Json
+    $WorkspaceResourceId=$workbook.fallbackResourceIds[0]
+}
+if ($WorkspaceResourceId -notmatch '^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[^/]+/providers/Microsoft\.OperationalInsights/workspaces/[^/]+$') {
+    throw 'WorkspaceResourceId must be a full Log Analytics workspace resource ID.'
+}
+$workspace=$WorkspaceResourceId
 $source=@{type='grafana-azure-monitor-datasource';uid='${DS_AZURE_MONITOR}'}
 $panels=[System.Collections.Generic.List[object]]::new()
 $script:panelId=0
@@ -16,9 +25,10 @@ $script:panelId=0
 $scope=@'
 let repo = @${Repository:sqlstring};
 let service = @${Service:sqlstring};
+let environment = @${Environment:sqlstring};
 let windowStart = $__timeFrom();
 let windowEnd = $__timeTo();
-let days = max_of(1.0 / 24.0, (windowEnd - windowStart) / 1d);
+let days = iff(windowEnd > windowStart, (windowEnd - windowStart) / 1d, real(null));
 '@
 $deployments=$scope+@'
 
@@ -26,6 +36,7 @@ let D = materialize(NWBDeploymentFacts_CL
 | summarize arg_max(UpdatedAt, *) by Repository, DeploymentId
 | where (repo == '*' or Repository == repo) and (service == '*' or Service == service)
 | where ReachedProduction == true
+| where environment == '*' or Environment == environment
 | where DeployedAt between (windowStart .. windowEnd));
 '@
 $changes=$deployments+@'
@@ -51,6 +62,7 @@ $workflows=$scope+@'
 let run = @${RunId:sqlstring};
 let W = materialize(NWBWorkflowRuns_CL
 | summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt
+| where environment == '*' or Environment == environment
 | where (repo == '*' or Repository == repo) and (service == '*' or Service == service)
 | extend SourceTime = coalesce(CompletedAt, todatetime(column_ifexists('SourceUpdatedAt', datetime(null))), TimeGenerated)
 | where SourceTime between (windowStart .. windowEnd)
@@ -62,6 +74,7 @@ $execution=$scope+@'
 let run = @${RunId:sqlstring};
 let E = materialize(NWBPipelineExecution_CL
 | summarize arg_max(UpdatedAt, *) by Repository, RunId, RunAttempt, JobId, RecordType, StepNumber
+| where environment == '*' or Environment == environment
 | where (repo == '*' or Repository == repo) and (service == '*' or Service == service)
 | where run == '*' or RunId == run
 | extend SourceTime = coalesce(CompletedAt, StartedAt, TimeGenerated)
@@ -221,8 +234,71 @@ V | top 200 by SourceTime desc
 '@) 0 72 24 9 'Includes successful checks and step-only mappings. Source workflow owns the checks and their pass/fail criteria. This dashboard observes their reported outcomes; it does not perform endpoint probes or continuously monitor the application.'
 Add-Text 'If verification is missing' 'Use the shared stage profile to map the exact verification job or step to **Post-deployment verification**, **Smoke test** or **Rollback verification**. Pre-deployment validation is separate. Publish a fresh run or replay after merging the mapping. No data does not prove that a check passed or was required.' 81 5
 
+# Release operations apply to ANY configured environment; production DORA keeps its
+# existing evidence rules. Inventory deliberately ignores RunId and event time.
+foreach($panel in $panels) { $panel.gridPos.y += 49 }
+$releases=$scope+@'
+
+let run = @${RunId:sqlstring};
+let R = materialize(NWBReleaseEvidence_CL
+| summarize arg_max(UpdatedAt, *) by Repository, ResourceId, ReleaseId
+| where (repo == '*' or Repository == repo) and (service == '*' or Service == service)
+| where environment == '*' or Environment == environment
+| where run == '*' or RunId == run
+| where CompletedAt between (windowStart .. windowEnd));
+'@
+Add-Text 'Release overview | every environment' 'Choose **Environment** to see Dev, Test, UAT, Production or another configured target. Release evidence comes from the delivery pipeline; version snapshots come from Azure. These are separate signals. No report means unknown. Production DORA remains below and requires confirmed production evidence.' 0 3
+Add-Panel 'Release operations observed' 'stat' ($releases+"`nR | summarize Total=count() | project Value=iff(Total > 0, Total, long(null))") 0 3 6 4 'Distinct release IDs per target, including deployment and rollback attempts.' 'short'
+Add-Panel 'Release operations failed' 'stat' ($releases+"`nR | summarize Total=count(), Failed=countif(Result == 'failure') | project Value=iff(Total > 0, Failed, long(null))") 6 3 6 4 'Reported deployment or rollback failures. Verification failures are shown separately.' 'short'
+Add-Panel 'Rollbacks observed' 'stat' ($releases+"`nR | summarize Total=count(), Rollbacks=countif(Operation == 'rollback') | project Value=iff(Total > 0, Rollbacks, long(null))") 12 3 6 4 'Rollback operations, including failures; not a production change fail rate.' 'short'
+Add-Panel 'Verification needs attention' 'stat' ($releases+"`nR | summarize Total=count(), Attention=countif(Verification != 'passed') | project Value=iff(Total > 0, Attention, long(null))") 18 3 6 4 'Includes missing, skipped, failed or cancelled required checks and targets without configured requirements.' 'short'
+Add-Panel 'Latest observed versions | Azure Container Apps' 'table' ($scope+@'
+
+NWBVersionInventory_CL
+| summarize arg_max(UpdatedAt, *) by Repository, ResourceId
+| where (repo == '*' or Repository == repo) and (service == '*' or Service == service)
+| where environment == '*' or Environment == environment
+| extend AgeHours=round((now() - TimeGenerated) / 1h, 1), SnapshotState=case(Outcome != 'success', 'Read failed', TimeGenerated < ago(24h), 'Stale - refresh inventory', 'Observed within 24h')
+| extend Versions=iff(array_length(ActiveVersions) > 0, ActiveVersions, dynamic([{}]))
+| mv-expand Version=Versions
+| project Repository, Service, Environment, ObservedAt=TimeGenerated, AgeHours, SnapshotState, Revision=tostring(Version.Revision), Container=tostring(Version.Container), Image=tostring(Version.Image), TrafficPercent=toint(Version.TrafficWeight), Health=tostring(Version.HealthState), Running=tostring(Version.RunningState), ResourceId, RunUrl
+| order by Environment asc, Service asc
+'@) 0 7 24 8 'Latest retained control-plane snapshot per target; ignores RunId and dashboard dates. Multiple active revisions and containers are shown. A failed read replaces the previous good view; empty values are unknown. This is not continuous runtime verification. Targets never inventoried cannot appear.'
+Add-Panel 'Release outcomes by environment' 'barchart' ($releases+"`nR | summarize Operations=count() by Environment, Result | extend Outcome=strcat(Environment, ' / ', Result) | project Outcome, Operations") 0 15 8 7 'Deploy and rollback operation outcomes. Required checks are a separate result.'
+Add-Panel 'Release history | version, actor and source run' 'table' ($releases+@'
+
+R | top 200 by CompletedAt desc
+| project CompletedAt, Repository, Service, Environment, TargetType=tostring(column_ifexists('TargetType', 'unknown')), ResourceId, Operation, Result, Verification, SourceVersion, TargetVersion, RevisionName, ReleaseId, RelatedDeploymentId, Actor, BuildRunId=RunId, RunAttempt, CommitSha, RunUrl
+'@) 8 15 16 7 'One operation per stable release ID and resource. Versions are pipeline evidence; use the Azure snapshot to check the latest observed active revisions. RunUrl opens the publishing workflow.'
+Add-Panel 'Required checks | failed, skipped or missing' 'table' ($releases+@'
+
+R | mv-expand Check=RequiredChecks
+| where tostring(Check.Result) != 'success'
+| project CompletedAt, Repository, Service, Environment, ReleaseId, Operation, CheckId=tostring(Check.Id), CheckType=tostring(Check.Kind), Result=tostring(Check.Result), RunUrl
+| top 200 by CompletedAt desc
+'@) 0 22 12 8 'Checks come from the target requirements and actual pipeline report. Absent required results are missing, never passed. A missing release report cannot establish which tests ran.'
+Add-Panel 'Rollback history | from version to version' 'table' ($releases+@'
+
+R | where Operation == 'rollback'
+| top 200 by CompletedAt desc
+| project CompletedAt, Repository, Service, Environment, SourceVersion, TargetVersion, Result, Verification, ReleaseId, OriginalDeploymentId=RelatedDeploymentId, Actor, RunUrl
+'@) 12 22 12 8 'Tracks rollback attempts and required rollback verification. OriginalDeploymentId identifies the affected deployment; it is not proof of a production incident or service recovery.'
+Add-Panel 'All release checks | smoke and post-deployment' 'table' ($releases+@'
+
+R | mv-expand Check=RequiredChecks
+| project CompletedAt, Repository, Service, Environment, ReleaseId, Operation, CheckId=tostring(Check.Id), CheckType=tostring(Check.Kind), Result=tostring(Check.Result), RunUrl
+| top 300 by CompletedAt desc
+'@) 0 30 24 8 'Passed and non-passed results from configured requirements. These are named check outcomes, not individual assertion counts. Delivery owners implement the tests.'
+Add-Panel 'Releases without check requirements' 'table' ($releases+@'
+
+R | where Verification == 'not_configured'
+| top 100 by CompletedAt desc
+| project CompletedAt, Repository, Service, Environment, ReleaseId, Operation, Result, RunUrl
+'@) 0 38 24 7 'Add RequiredChecks for the target and operation in release-targets.json. Empty requirements never mean verified.'
+Add-Text 'Evidence coverage' 'Release reporting and inventory must be onboarded for each target. **No data is unknown.** Azure inventory currently covers Container Apps; other hosting platforms need an adapter. Inventory shows observation age and marks snapshots older than 24 hours as stale. Dev/Test results are operational delivery metrics, not production DORA.' 45 4
+
 $variables=@()
-foreach($name in @('Repository','Service','RunId')) {
+foreach($name in @('Repository','Service','Environment','RunId')) {
     $value='*';if($name -eq 'Repository'){$value='northwest/doc_extraction'}
     $variables+=@{name=$name;label="$name (exact or *)";type='textbox';query=$value;current=@{text=$value;value=$value};options=@(@{text=$value;value=$value;selected=$true});hide=0;skipUrlSync=$false}
 }

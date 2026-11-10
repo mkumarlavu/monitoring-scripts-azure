@@ -1,0 +1,414 @@
+{
+    "$schema":  "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion":  "1.0.0.0",
+    "parameters":  {
+                       "workspaceName":  {
+                                             "type":  "string",
+                                             "defaultValue":  "prd-cicdobservability-law-eus2"
+                                         },
+                       "location":  {
+                                        "type":  "string",
+                                        "defaultValue":  "eastus2"
+                                    },
+                       "dcrName":  {
+                                       "type":  "string",
+                                       "defaultValue":  "prd-cicdobservability-release-evidence-dcr-eus2"
+                                   },
+                       "dataCollectionEndpointId":  {
+                                                        "type":  "string"
+                                                    },
+                       "retentionInDays":  {
+                                               "type":  "int",
+                                               "defaultValue":  30,
+                                               "minValue":  30,
+                                               "maxValue":  730
+                                           }
+                   },
+    "resources":  [
+                      {
+                          "type":  "Microsoft.OperationalInsights/workspaces/tables",
+                          "apiVersion":  "2022-10-01",
+                          "name":  "[concat(parameters(\u0027workspaceName\u0027), \u0027/NWBReleaseEvidence_CL\u0027)]",
+                          "properties":  {
+                                             "plan":  "Analytics",
+                                             "retentionInDays":  "[parameters(\u0027retentionInDays\u0027)]",
+                                             "totalRetentionInDays":  "[parameters(\u0027retentionInDays\u0027)]",
+                                             "schema":  {
+                                                            "name":  "NWBReleaseEvidence_CL",
+                                                            "columns":  [
+                                                                            {
+                                                                                "name":  "TimeGenerated",
+                                                                                "type":  "datetime"
+                                                                            },
+                                                                            {
+                                                                                "name":  "UpdatedAt",
+                                                                                "type":  "datetime"
+                                                                            },
+                                                                            {
+                                                                                "name":  "CompletedAt",
+                                                                                "type":  "datetime"
+                                                                            },
+                                                                            {
+                                                                                "name":  "Repository",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "Service",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "Environment",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "ResourceId",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "TargetType",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "ReleaseId",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "RelatedDeploymentId",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "Operation",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "Result",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "SourceVersion",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "TargetVersion",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "RevisionName",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "RunId",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "RunAttempt",
+                                                                                "type":  "int"
+                                                                            },
+                                                                            {
+                                                                                "name":  "RunUrl",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "Actor",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "CommitSha",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "RequiredChecks",
+                                                                                "type":  "dynamic"
+                                                                            },
+                                                                            {
+                                                                                "name":  "RequiredCheckCount",
+                                                                                "type":  "int"
+                                                                            },
+                                                                            {
+                                                                                "name":  "PassedCheckCount",
+                                                                                "type":  "int"
+                                                                            },
+                                                                            {
+                                                                                "name":  "Verification",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "EvidenceSource",
+                                                                                "type":  "string"
+                                                                            }
+                                                                        ]
+                                                        }
+                                         }
+                      },
+                      {
+                          "type":  "Microsoft.OperationalInsights/workspaces/tables",
+                          "apiVersion":  "2022-10-01",
+                          "name":  "[concat(parameters(\u0027workspaceName\u0027), \u0027/NWBVersionInventory_CL\u0027)]",
+                          "properties":  {
+                                             "plan":  "Analytics",
+                                             "retentionInDays":  "[parameters(\u0027retentionInDays\u0027)]",
+                                             "totalRetentionInDays":  "[parameters(\u0027retentionInDays\u0027)]",
+                                             "schema":  {
+                                                            "name":  "NWBVersionInventory_CL",
+                                                            "columns":  [
+                                                                            {
+                                                                                "name":  "TimeGenerated",
+                                                                                "type":  "datetime"
+                                                                            },
+                                                                            {
+                                                                                "name":  "UpdatedAt",
+                                                                                "type":  "datetime"
+                                                                            },
+                                                                            {
+                                                                                "name":  "Repository",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "Service",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "Environment",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "ResourceId",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "Outcome",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "ActiveVersions",
+                                                                                "type":  "dynamic"
+                                                                            },
+                                                                            {
+                                                                                "name":  "RunId",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "RunUrl",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "EvidenceSource",
+                                                                                "type":  "string"
+                                                                            },
+                                                                            {
+                                                                                "name":  "DetailCode",
+                                                                                "type":  "string"
+                                                                            }
+                                                                        ]
+                                                        }
+                                         }
+                      },
+                      {
+                          "type":  "Microsoft.Insights/dataCollectionRules",
+                          "apiVersion":  "2024-03-11",
+                          "name":  "[parameters(\u0027dcrName\u0027)]",
+                          "location":  "[parameters(\u0027location\u0027)]",
+                          "dependsOn":  [
+                                            "[resourceId(\u0027Microsoft.OperationalInsights/workspaces/tables\u0027, parameters(\u0027workspaceName\u0027), \u0027NWBReleaseEvidence_CL\u0027)]",
+                                            "[resourceId(\u0027Microsoft.OperationalInsights/workspaces/tables\u0027, parameters(\u0027workspaceName\u0027), \u0027NWBVersionInventory_CL\u0027)]"
+                                        ],
+                          "properties":  {
+                                             "dataCollectionEndpointId":  "[parameters(\u0027dataCollectionEndpointId\u0027)]",
+                                             "streamDeclarations":  {
+                                                                        "Custom-NWBReleaseEvidence_CL":  {
+                                                                                                             "columns":  [
+                                                                                                                             {
+                                                                                                                                 "name":  "TimeGenerated",
+                                                                                                                                 "type":  "datetime"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "UpdatedAt",
+                                                                                                                                 "type":  "datetime"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "CompletedAt",
+                                                                                                                                 "type":  "datetime"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "Repository",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "Service",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "Environment",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "ResourceId",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "TargetType",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "ReleaseId",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "RelatedDeploymentId",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "Operation",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "Result",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "SourceVersion",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "TargetVersion",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "RevisionName",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "RunId",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "RunAttempt",
+                                                                                                                                 "type":  "int"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "RunUrl",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "Actor",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "CommitSha",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "RequiredChecks",
+                                                                                                                                 "type":  "dynamic"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "RequiredCheckCount",
+                                                                                                                                 "type":  "int"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "PassedCheckCount",
+                                                                                                                                 "type":  "int"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "Verification",
+                                                                                                                                 "type":  "string"
+                                                                                                                             },
+                                                                                                                             {
+                                                                                                                                 "name":  "EvidenceSource",
+                                                                                                                                 "type":  "string"
+                                                                                                                             }
+                                                                                                                         ]
+                                                                                                         },
+                                                                        "Custom-NWBVersionInventory_CL":  {
+                                                                                                              "columns":  [
+                                                                                                                              {
+                                                                                                                                  "name":  "TimeGenerated",
+                                                                                                                                  "type":  "datetime"
+                                                                                                                              },
+                                                                                                                              {
+                                                                                                                                  "name":  "UpdatedAt",
+                                                                                                                                  "type":  "datetime"
+                                                                                                                              },
+                                                                                                                              {
+                                                                                                                                  "name":  "Repository",
+                                                                                                                                  "type":  "string"
+                                                                                                                              },
+                                                                                                                              {
+                                                                                                                                  "name":  "Service",
+                                                                                                                                  "type":  "string"
+                                                                                                                              },
+                                                                                                                              {
+                                                                                                                                  "name":  "Environment",
+                                                                                                                                  "type":  "string"
+                                                                                                                              },
+                                                                                                                              {
+                                                                                                                                  "name":  "ResourceId",
+                                                                                                                                  "type":  "string"
+                                                                                                                              },
+                                                                                                                              {
+                                                                                                                                  "name":  "Outcome",
+                                                                                                                                  "type":  "string"
+                                                                                                                              },
+                                                                                                                              {
+                                                                                                                                  "name":  "ActiveVersions",
+                                                                                                                                  "type":  "dynamic"
+                                                                                                                              },
+                                                                                                                              {
+                                                                                                                                  "name":  "RunId",
+                                                                                                                                  "type":  "string"
+                                                                                                                              },
+                                                                                                                              {
+                                                                                                                                  "name":  "RunUrl",
+                                                                                                                                  "type":  "string"
+                                                                                                                              },
+                                                                                                                              {
+                                                                                                                                  "name":  "EvidenceSource",
+                                                                                                                                  "type":  "string"
+                                                                                                                              },
+                                                                                                                              {
+                                                                                                                                  "name":  "DetailCode",
+                                                                                                                                  "type":  "string"
+                                                                                                                              }
+                                                                                                                          ]
+                                                                                                          }
+                                                                    },
+                                             "destinations":  {
+                                                                  "logAnalytics":  [
+                                                                                       {
+                                                                                           "name":  "workspace",
+                                                                                           "workspaceResourceId":  "[resourceId(\u0027Microsoft.OperationalInsights/workspaces\u0027, parameters(\u0027workspaceName\u0027))]"
+                                                                                       }
+                                                                                   ]
+                                                              },
+                                             "dataFlows":  [
+                                                               {
+                                                                   "streams":  [
+                                                                                   "Custom-NWBReleaseEvidence_CL"
+                                                                               ],
+                                                                   "outputStream":  "Custom-NWBReleaseEvidence_CL",
+                                                                   "transformKql":  "source",
+                                                                   "destinations":  [
+                                                                                        "workspace"
+                                                                                    ]
+                                                               },
+                                                               {
+                                                                   "streams":  [
+                                                                                   "Custom-NWBVersionInventory_CL"
+                                                                               ],
+                                                                   "outputStream":  "Custom-NWBVersionInventory_CL",
+                                                                   "transformKql":  "source",
+                                                                   "destinations":  [
+                                                                                        "workspace"
+                                                                                    ]
+                                                               }
+                                                           ]
+                                         }
+                      }
+                  ],
+    "outputs":  {
+                    "dcrImmutableId":  {
+                                           "type":  "string",
+                                           "value":  "[reference(resourceId(\u0027Microsoft.Insights/dataCollectionRules\u0027, parameters(\u0027dcrName\u0027)), \u00272024-03-11\u0027).immutableId]"
+                                       }
+                }
+}

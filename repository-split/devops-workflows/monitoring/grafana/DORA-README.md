@@ -74,4 +74,6 @@ From the **devops-workflows** repository root:
 ./monitoring/grafana/Test-DoraGrafana.ps1
 ```
 
-`Build-DoraGrafana.ps1` uses the workspace already embedded in the existing Workbook artifact. It writes JSON only. The collector uses the same Windows runner, OIDC identity and existing DCRs; no Linux changes or automatic installations are included.
+`Build-DoraGrafana.ps1` runs independently of the Workbook files and defaults to the Northwest CI/CD workspace. For another workspace, pass `-WorkspaceResourceId` with its full Azure resource ID. An explicit `-WorkbookPath` is also supported; use only one of these overrides. It writes JSON only. Copy the generated `nwb-dora-monitoring.grafana.json` unchanged into the NWB repository and import that JSON into Azure, not a YAML conversion. The collector uses the same Windows runner and OIDC identity.
+
+Deployment frequency uses the actual selected elapsed time, including windows shorter than an hour. One deployment in five minutes is a normalized rate of 288 deployments/day, not a claim that 288 deployments occurred. Zero or reversed windows give an unavailable rate.

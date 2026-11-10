@@ -12,8 +12,11 @@ function Query([string]$Title) {
 }
 $artifact=Join-Path $PSScriptRoot 'nwb-dora-monitoring.grafana.json'
 $temp=Join-Path ([IO.Path]::GetTempPath()) ('nwb-dora-'+[guid]::NewGuid().ToString()+'.json')
+$standalone=Join-Path ([IO.Path]::GetTempPath()) ('nwb-dora-'+[guid]::NewGuid().ToString()+'.ps1')
 try {
-    & (Join-Path $PSScriptRoot 'Build-DoraGrafana.ps1') -OutputPath $temp | Out-Null
+    # Run away from the repository to catch accidental workbook/file dependencies.
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Build-DoraGrafana.ps1') -Destination $standalone
+    & $standalone -OutputPath $temp | Out-Null
     $dashboard=Get-Content -LiteralPath $temp -Raw | ConvertFrom-Json
     # Hashtable property ordering can differ between PowerShell processes.
     function Canonical($Value) {
@@ -50,6 +53,9 @@ try {
         Check ($p.targets[0].azureLogAnalytics.resources[0] -like '*/workspaces/prd-cicdobservability-law-eus2') 'Workspace binding retained'
         Check ($p.fieldConfig.defaults.noValue -eq 'Not available') 'Missing values are not healthy zeros'
     }
+    $frequency=Query 'Deployments / day'
+    Check ($frequency.Contains('let days = iff(windowEnd > windowStart, (windowEnd - windowStart) / 1d, real(null));')) 'Frequency uses actual elapsed days and guards zero/reversed windows'
+    Check (-not $frequency.Contains('max_of(1.0 / 24.0')) 'Short ranges are not clamped to an hour'
     $rate=Query 'Change fail rate'
     Check ($rate.Contains('ReachedProduction == true')) 'DORA excludes non-production deployments'
     Check ($rate.IndexOf('arg_max(UpdatedAt') -lt $rate.IndexOf('DeployedAt between')) 'Latest classifications selected before date filtering'
@@ -73,6 +79,17 @@ try {
     Check ($attention.Contains("'skipped'") -and $attention.Contains("'cancelled'")) 'Skipped and cancelled checks remain visible'
     $mapping=Get-Content (Join-Path $PSScriptRoot 'post-deployment-mapping-example.json') -Raw | ConvertFrom-Json
     Check (@($mapping.Rules).Count -gt 0) 'Onboarding mapping example parses'
+    $release=Query 'Release history | version, actor and source run'
+    Check ($release.Contains('Environment == environment') -and -not $release.Contains('ReachedProduction == true')) 'Operational release history supports every environment'
+    Check ($release.IndexOf('arg_max(UpdatedAt') -lt $release.IndexOf('CompletedAt between')) 'Release replays deduplicate before window filtering'
+    $inventory=Query 'Latest observed versions | Azure Container Apps'
+    Check ($inventory.Contains('arg_max(UpdatedAt, *) by Repository, ResourceId')) 'Latest snapshot replaces previous version observations'
+    Check ($inventory.Contains('Read failed') -and $inventory.Contains('Stale - refresh inventory')) 'Failed and stale inventory are visible'
+    Check (-not $inventory.Contains('TimeGenerated between') -and -not $inventory.Contains('RunId ==')) 'Inventory not scoped to investigated run or event window'
+    Check ((Query 'Required checks | failed, skipped or missing').Contains("tostring(Check.Result) != 'success'")) 'All non-passing required checks shown'
     Write-Output "PASS: $script:checks dashboard artifact, query-contract and layout checks (offline; KQL not executed)."
 }
-finally {if(Test-Path -LiteralPath $temp) {Remove-Item -LiteralPath $temp}}
+finally {
+    if(Test-Path -LiteralPath $temp) {Remove-Item -LiteralPath $temp}
+    if(Test-Path -LiteralPath $standalone) {Remove-Item -LiteralPath $standalone}
+}

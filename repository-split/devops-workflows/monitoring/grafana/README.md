@@ -4,6 +4,8 @@ For the new **DORA, post-deployment checks and developer run investigation** das
 follow [DORA-README.md](DORA-README.md). Import `nwb-dora-monitoring.grafana.json` for
 all of those views together. The CI dashboard described below is unchanged.
 
+For release history, rollback results, required smoke checks and observed versions across environments, follow [release monitoring setup](../docs/RELEASE-MONITORING.md). These panels require the additional tables and evidence publishers described there.
+
 Use **Azure Monitor > Dashboards with Grafana**. Microsoft provides this dashboard experience inside the Azure portal at no additional dashboard charge. It does not require an Azure Managed Grafana instance. Log Analytics ingestion, retention and any applicable query or alert charges still apply. [Microsoft comparison](https://learn.microsoft.com/en-us/azure/azure-monitor/visualize/visualize-grafana-overview), [Azure Monitor pricing](https://azure.microsoft.com/en-us/pricing/details/monitor/).
 
 The first Northwest import exposed a query interpolation error (`SYN0002` at `northwest`). The generator now uses quoted KQL string literals for the text filters. This correction is checked offline; reimport and verify the live panels. The existing Azure Workbook remains usable during validation.

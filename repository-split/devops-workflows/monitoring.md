@@ -1,5 +1,7 @@
 # Northwest CI/CD monitoring
 
+Release monitoring addition: [setup across environments](monitoring/docs/RELEASE-MONITORING.md) covers release history, rollback evidence, required post-deployment checks and observed Container App versions. This is prepared locally; deploy its tables and connect actual pipeline reports before treating the new panels as live.
+
 Updated: 3 November 2026
 
 Dashboard: [Azure Workbook installation and metric definitions](monitoring/workbooks/README.md). The first import displays real workflow, execution and collection-health data in the user's Azure screenshots. The revised local layout and daily trend need to be applied to that workbook and checked.

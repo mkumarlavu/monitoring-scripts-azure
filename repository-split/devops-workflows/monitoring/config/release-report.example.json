@@ -1,0 +1,16 @@
+{
+  "ReleaseId": "example-release-001",
+  "Environment": "dev",
+  "ResourceId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/REPLACE-RG/providers/Microsoft.App/containerApps/REPLACE-APP",
+  "Operation": "deploy",
+  "Result": "success",
+  "CompletedAt": "2026-11-09T12:00:00Z",
+  "SourceVersion": "previous-image-digest",
+  "TargetVersion": "new-image-digest",
+  "RevisionName": "example-revision",
+  "RelatedDeploymentId": "",
+  "Checks": [
+    { "Id": "smoke", "Result": "success" },
+    { "Id": "release-verification", "Result": "failure" }
+  ]
+}

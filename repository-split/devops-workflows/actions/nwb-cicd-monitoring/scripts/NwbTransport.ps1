@@ -52,7 +52,7 @@ function Get-NwbArrayPages {
 
 function Send-NwbRecords {
     param([object[]]$Records, [string]$DcrId,
-        [ValidateSet('NWBWorkflowRuns_CL','NWBDeploymentFacts_CL','NWBPipelineExecution_CL','NWBCollectorHealth_CL')][string]$Table)
+        [ValidateSet('NWBWorkflowRuns_CL','NWBDeploymentFacts_CL','NWBPipelineExecution_CL','NWBCollectorHealth_CL','NWBReleaseEvidence_CL','NWBVersionInventory_CL')][string]$Table)
     if ($Records.Count -eq 0) { return }
     if (-not $env:AZURE_DCE_LOGS_ENDPOINT) { throw 'Azure Logs ingestion endpoint is required.' }
     $endpoint = [uri]$env:AZURE_DCE_LOGS_ENDPOINT

@@ -1,0 +1,19 @@
+# Copy to the APPLICATION repo .github/workflows/nwb-version-inventory.yml
+# after configuring release-targets.json and Azure permissions.
+name: NWB version inventory
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish observed versions to Azure
+        default: false
+        type: boolean
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  inventory:
+    uses: northwest/devops-workflows/.github/workflows/nwb-version-inventory-reusable.yml@main
+    with:
+      runner_labels: ${{ vars.CICD_MONITOR_RUNNER_LABELS }}
+      publish: ${{ inputs.publish }}

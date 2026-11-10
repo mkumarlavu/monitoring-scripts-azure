@@ -1,0 +1,15 @@
+{
+  "SchemaVersion": 1,
+  "Targets": [
+    {
+      "Service": "doc-extraction",
+      "Environment": "dev",
+      "ResourceId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/REPLACE-RG/providers/Microsoft.App/containerApps/REPLACE-APP",
+      "RequiredChecks": [
+        { "Id": "smoke", "Kind": "Smoke test", "Operations": ["deploy", "rollback"] },
+        { "Id": "release-verification", "Kind": "Post-deployment verification", "Operations": ["deploy", "rollback"] },
+        { "Id": "rollback-verification", "Kind": "Rollback verification", "Operations": ["rollback"] }
+      ]
+    }
+  ]
+}
