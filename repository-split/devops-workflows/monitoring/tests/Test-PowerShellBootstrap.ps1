@@ -7,6 +7,12 @@ function Reject([scriptblock]$Action,[string]$Message){
     throw "FAILED: expected $Message"
 }
 . (Join-Path $PSScriptRoot '../../actions/nwb-cicd-monitoring/scripts/Initialize-PowerShell.ps1')
+$releaseActionPath=Join-Path $PSScriptRoot '../../actions/nwb-release-evidence'
+$releaseAction=Get-Content (Join-Path $releaseActionPath 'action.yml') -Raw
+Check ($releaseAction.IndexOf('Initialize-NwbPowerShell') -ge 0 -and $releaseAction.IndexOf('Initialize-NwbPowerShell') -lt $releaseAction.IndexOf('shell: pwsh')) 'Release action finds installed runtime before invoking pwsh'
+Check ($releaseAction.Contains("if: runner.os == 'Windows'") -and $releaseAction.Contains('shell: powershell')) 'Bootstrap runs in Windows PowerShell on Windows'
+$bootstrapRelative='../nwb-cicd-monitoring/scripts/Initialize-PowerShell.ps1'
+Check ($releaseAction.Contains($bootstrapRelative) -and (Test-Path (Join-Path $releaseActionPath $bootstrapRelative))) 'Release action uses the bundled monitoring runtime initializer'
 $pathFile=Join-Path $PSScriptRoot ('runtime-path-'+[guid]::NewGuid().ToString('N')+'.txt')
 $savedOs=$env:RUNNER_OS
 $script:existing=Join-Path $PSScriptRoot 'installed runtime/pwsh.exe'

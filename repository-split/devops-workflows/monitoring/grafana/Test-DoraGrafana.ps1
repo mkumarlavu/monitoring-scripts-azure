@@ -31,8 +31,14 @@ try {
             $parts=@(foreach($v in $Value) {Canonical $v})
             return '['+($parts -join ',')+']'
         }
+        if($Value -is [string]) {$Value=$Value.Replace("`r`n","`n")}
         return ($Value | ConvertTo-Json -Compress)
     }
+    $lf=[pscustomobject]@{queries=@([pscustomobject]@{query="source`n| count"})}
+    $crlf=[pscustomobject]@{queries=@([pscustomobject]@{query="source`r`n| count"})}
+    $changed=[pscustomobject]@{queries=@([pscustomobject]@{query="source`n| take 1"})}
+    Check ((Canonical $lf) -ceq (Canonical $crlf)) 'Nested query strings ignore checkout line endings'
+    Check ((Canonical $lf) -cne (Canonical $changed)) 'Query content changes still fail equivalence'
     $saved=Get-Content -LiteralPath $artifact -Raw | ConvertFrom-Json
     Check ((Canonical $saved) -ceq (Canonical $dashboard)) 'Committed artifact matches generator'
     Check ($dashboard.uid -eq 'nwb-dora-monitoring') 'Separate stable dashboard UID'
@@ -61,6 +67,10 @@ try {
     Check ($rate.IndexOf('arg_max(UpdatedAt') -lt $rate.IndexOf('DeployedAt between')) 'Latest classifications selected before date filtering'
     Check ($rate.Contains('Known == Total') -and $rate.Contains('isnotnull(RequiresIntervention)') -and $rate.Contains('real(null)')) 'Incomplete failure classification does not become zero rate'
     $rework=Query 'Deployment rework rate'
+    $recovery=Query 'Failed deployment recovery | P50'
+    Check (-not $recovery.Contains('FailureStartedAt >= DeployedAt')) 'Outages beginning during rollout remain eligible'
+    Check ($recovery.Contains('on DeploymentId, Service, Environment') -and $recovery.Contains('DeploymentRelated == true')) 'Recovery still requires deployment-linked incident evidence'
+    Check ($recovery.Contains('isnotnull(FailureStartedAt)') -and $recovery.Contains('isnotnull(RestoredAt)') -and $recovery.Contains('RestoredAt >= FailureStartedAt') -and $recovery.Contains('RestoredAt <= now()')) 'Missing, reversed and future recovery timestamps remain excluded'
     Check ($rework.Contains('Known == Total') -and $rework.Contains('isnotnull(IsRework)')) 'Rework requires complete explicit classification'
     $directory=Query 'Run directory | repo, build, actor and result'
     Check ($directory.Contains('by Repository, RunId, RunAttempt')) 'Retries remain separate while replays deduplicate'

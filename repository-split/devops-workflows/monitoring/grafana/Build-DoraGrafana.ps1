@@ -1,11 +1,12 @@
 [CmdletBinding()]
 param(
     [string]$WorkbookPath,
-    [string]$OutputPath=(Join-Path $PSScriptRoot 'nwb-dora-monitoring.grafana.json'),
+    [string]$OutputPath,
     [string]$WorkspaceResourceId='/subscriptions/18af3db6-624c-4522-9319-35501eb3fac0/resourceGroups/prd-cicdobservability-rg-eus2/providers/Microsoft.OperationalInsights/workspaces/prd-cicdobservability-law-eus2'
 )
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
+if (-not $OutputPath) {$OutputPath=Join-Path $PSScriptRoot 'nwb-dora-monitoring.grafana.json'}
 # Standalone by default; retain an explicit workbook override for existing callers.
 if ($WorkbookPath) {
     if ($PSBoundParameters.ContainsKey('WorkspaceResourceId')) {throw 'Specify WorkbookPath or WorkspaceResourceId, not both.'}
@@ -54,7 +55,7 @@ let I = materialize(NWBIncidentFacts_CL
 | summarize arg_max(UpdatedAt, *) by Service, Environment, IncidentId
 | where DeploymentRelated == true and isnotempty(IncidentId)
 | join kind=inner (D | project Repository, DeploymentId, Service, Environment, DeployedAt, RunUrl) on DeploymentId, Service, Environment
-| extend ValidRecovery = isnotnull(FailureStartedAt) and FailureStartedAt >= DeployedAt and isnotnull(RestoredAt) and RestoredAt >= FailureStartedAt and RestoredAt <= now()
+| extend ValidRecovery = isnotnull(FailureStartedAt) and isnotnull(RestoredAt) and RestoredAt >= FailureStartedAt and RestoredAt <= now()
 | extend RecoverySecondsCalculated = iff(ValidRecovery, (RestoredAt - FailureStartedAt) / 1s, real(null)));
 '@
 $workflows=$scope+@'
@@ -124,7 +125,7 @@ Add-Panel 'Change fail rate' 'stat' ($deployments+@'
 D | summarize Total=count(), Known=countif(ClassificationKnown == true and isnotnull(RequiresIntervention)), Failed=countif(ClassificationKnown == true and RequiresIntervention == true)
 | project Value=iff(Total > 0 and Known == Total, 100.0 * Failed / Total, real(null))
 '@) 9 4 5 5 'Production deployments requiring intervention / production deployments. Only shown when every observed deployment is classified. CI job failures are not deployment failures.' 'percent'
-Add-Panel 'Failed deployment recovery | P50' 'stat' ($incidents+"`nI | where ValidRecovery | summarize Value=percentile(RecoverySecondsCalculated, 50)") 14 4 5 5 'Median recovery time for resolved deployment-related incidents linked to the selected production deployment cohort. Open/invalid recoveries are excluded and counted below.' 's'
+Add-Panel 'Failed deployment recovery | P50' 'stat' ($incidents+"`nI | where ValidRecovery | summarize Value=percentile(RecoverySecondsCalculated, 50)") 14 4 5 5 'Median recovery time for resolved deployment-related incidents linked to the selected production deployment cohort, including outages that start during rollout. DeployedAt records deployment completion, not rollout start. Open/invalid recoveries are excluded and counted below.' 's'
 Add-Panel 'Deployment rework rate' 'stat' ($deployments+@'
 
 D | summarize Total=count(), Known=countif(ReworkClassificationKnown == true and isnotnull(IsRework)), Rework=countif(ReworkClassificationKnown == true and IsRework == true)

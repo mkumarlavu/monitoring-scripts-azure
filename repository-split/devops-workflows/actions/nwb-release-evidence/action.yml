@@ -16,6 +16,14 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Check installed PowerShell 7 on Windows
+      if: runner.os == 'Windows'
+      shell: powershell
+      env:
+        NWB_RELEASE_ACTION_PATH: ${{ github.action_path }}
+      run: |
+        . (Join-Path $env:NWB_RELEASE_ACTION_PATH '../nwb-cicd-monitoring/scripts/Initialize-PowerShell.ps1')
+        Initialize-NwbPowerShell
     - name: Publish release evidence or inventory
       shell: pwsh
       env:
