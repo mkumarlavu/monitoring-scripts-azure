@@ -153,3 +153,6 @@ NWBCollectorHealth_CL
 | project TimeGenerated, Outcome, DetailCode
 | order by TimeGenerated desc
 
+
+
+/subscriptions/18af3db6-624c-4522-9319-35501eb3fac0/resourceGroups/prd-cicdobservability-rg-eus2/providers/Microsoft.Insights/dataCollectionEndpoints/prd-cicdobservability-dce-eus2
