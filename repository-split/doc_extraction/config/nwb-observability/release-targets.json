@@ -1,0 +1,11 @@
+{
+  "SchemaVersion": 1,
+  "Targets": [
+    {
+      "Service": "doc-extraction",
+      "Environment": "preprod",
+      "ResourceId": "/subscriptions/c5c30481-0141-4306-85ed-c2b607b48a17/resourceGroups/NWPre-DocIntel-RG-EUS2/providers/Microsoft.App/containerApps/doc-extraction-backend",
+      "RequiredChecks": []
+    }
+  ]
+}
