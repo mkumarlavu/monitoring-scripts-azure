@@ -32,6 +32,8 @@ runs:
         NWB_RELEASE_CONFIG: ${{ inputs.config_path }}
         NWB_RELEASE_EVIDENCE: ${{ inputs.evidence_path }}
         NWB_RELEASE_PUBLISH: ${{ inputs.publish }}
+        AZURE_DCE_LOGS_ENDPOINT: ${{ vars.AZURE_DCE_LOGS_ENDPOINT }}
+        AZURE_RELEASE_DCR_IMMUTABLE_ID: ${{ vars.AZURE_RELEASE_DCR_IMMUTABLE_ID }}
       run: |
         $script = Join-Path $env:NWB_RELEASE_ACTION_PATH '../nwb-cicd-monitoring/scripts/Send-ReleaseEvidence.ps1'
         & $script -Operation $env:NWB_RELEASE_OPERATION -ConfigPath $env:NWB_RELEASE_CONFIG -EvidencePath $env:NWB_RELEASE_EVIDENCE -Publish:([bool]::Parse($env:NWB_RELEASE_PUBLISH))
