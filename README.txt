@@ -156,3 +156,22 @@ NWBCollectorHealth_CL
 
 
 /subscriptions/18af3db6-624c-4522-9319-35501eb3fac0/resourceGroups/prd-cicdobservability-rg-eus2/providers/Microsoft.Insights/dataCollectionEndpoints/prd-cicdobservability-dce-eus2
+
+Hi Mike, can you please assign Monitoring Metrics Publisher to our managed identity on the new DCR? Add role assignment is disabled for me.
+- Subscription: NWPROD-SUB
+- Resource group: prd-cicdobservability-rg-eus2
+- DCR: prd-cicdobservability-release-evidence-dcr-eus2
+- Managed identity: prd-cicdobservability-collector-mi-eus2
+Please follow these steps:
+1. Sign in to Azure Portal.
+2. Search for Data Collection Rules.
+3. Open prd-cicdobservability-release-evidence-dcr-eus2.
+4. Select Access control (IAM) → Add → Add role assignment.
+5. Search for Monitoring Metrics Publisher, select it, then click Next.
+6. Under Assign access to, select Managed identity.
+7. Click Select members and choose:
+   - Subscription: NWPROD-SUB
+   - Managed identity type: User-assigned managed identity
+   - Identity: prd-cicdobservability-collector-mi-eus2
+8. Click Select, then Review + assign to complete.
+9. Open Role assignments and search for the identity to confirm the role appears.
