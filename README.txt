@@ -158,19 +158,7 @@ NWBCollectorHealth_CL
 /subscriptions/18af3db6-624c-4522-9319-35501eb3fac0/resourceGroups/prd-cicdobservability-rg-eus2/providers/Microsoft.Insights/dataCollectionEndpoints/prd-cicdobservability-dce-eus2
 
 
-Open Azure Portal → Container Apps → doc-extraction-backend in NWPREPROD-SUB.
-
-Click Access control (IAM).
-
-Click Add → Add role assignment.
-
-Search for Reader.
-
-Select Reader, then click Next.
-
-Under Assign access to, select Managed identity.
-
-Click Select members and choose the existing collector identity matching this Client ID:
-eb7f1418-0c89-46dc-b309-e3a0b7c941fd
-
-Click Select → Review + assign.
+NWBVersionInventory_CL
+| where Repository == "northwest/doc_extraction"
+| summarize arg_max(UpdatedAt, *) by ResourceId
+| project UpdatedAt, Environment, Outcome, ActiveVersions
