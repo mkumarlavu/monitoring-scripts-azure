@@ -120,7 +120,7 @@ $null=New-Item -ItemType Directory -Path $temp
 $saved=@{}
 $envValues=@{GITHUB_REPOSITORY='northwest/example';GITHUB_SERVER_URL='https://northwest.ghe.com';GITHUB_RUN_ID='123';GITHUB_RUN_ATTEMPT='2';GITHUB_ACTOR='tester';GITHUB_SHA='abc';AZURE_DCE_LOGS_ENDPOINT='https://example.eastus2-1.ingest.monitor.azure.com';AZURE_RELEASE_DCR_IMMUTABLE_ID='dcr-11111111111111111111111111111111'}
 foreach($key in $envValues.Keys){$saved[$key]=[Environment]::GetEnvironmentVariable($key);[Environment]::SetEnvironmentVariable($key,$envValues[$key])}
-$global:releaseTestPosts=@();$global:releaseTestGets=0;$global:releaseTestBadLink=$false
+$global:releaseTestPosts=@();$global:releaseTestGets=0;$global:releaseTestBadLink=$false;$global:releaseTestHttpStatus=$null
 function global:az { $global:LASTEXITCODE=0; 'offline-token' }
 function global:Invoke-RestMethod {
     param($Uri,$Headers,$Method,$Body,$TimeoutSec,$MaximumRedirection,$ErrorAction,$ContentType)
@@ -129,6 +129,11 @@ function global:Invoke-RestMethod {
         return
     }
     $global:releaseTestGets++
+    if($null -ne $global:releaseTestHttpStatus){
+        $exception=New-Object System.Exception 'must-not-leak: offline-token and raw Azure response'
+        $exception | Add-Member NoteProperty Response ([pscustomobject]@{StatusCode=$global:releaseTestHttpStatus})
+        throw $exception
+    }
     if($global:releaseTestBadLink){return [pscustomobject]@{value=@();nextLink='https://untrusted.example/revisions'}}
     if($global:releaseTestGets -eq 1){return [pscustomobject]@{value=@();nextLink=($Uri+'&page=2')}}
     return [pscustomobject]@{value=@([pscustomobject]@{name='revision-1';properties=[pscustomobject]@{active=$true;template=[pscustomobject]@{containers=@([pscustomobject]@{name='api';image='registry/api@sha256:123'})}}})}
@@ -147,13 +152,26 @@ try {
     Check ($global:releaseTestPosts.Count -eq 1) 'Release publishes via ingestion transport'
     & $sender -Operation inventory -ConfigPath $cp -Publish | Out-Null
     Check ($global:releaseTestGets -eq 2 -and $global:releaseTestPosts[-1].ActiveVersions.Count -eq 1) 'Inventory follows valid pagination before publishing'
+    foreach($statusCase in @(@(403,'Reader access'),@(404,'exact Container App resource ID'),@(0,'DNS, TLS'))){
+        $global:releaseTestHttpStatus=$statusCase[0];$global:releaseTestGets=0
+        $inventoryWarnings=@();$inventoryThrew=$false
+        try {
+            & $sender -Operation inventory -ConfigPath $cp -Publish -WarningVariable inventoryWarnings -WarningAction SilentlyContinue | Out-Null
+        } catch {$inventoryThrew=$true}
+        $warningText=($inventoryWarnings | Out-String)
+        Check $inventoryThrew 'HTTP revision-read failure must fail the inventory job'
+        Check ($warningText.Contains("HTTP $($statusCase[0])") -and $warningText.Contains('Phase=revision-read') -and $warningText.Contains($statusCase[1])) 'Warning contains safe status, phase and actionable hint'
+        Check (-not $warningText.Contains('must-not-leak') -and -not $warningText.Contains('offline-token')) 'Warning does not expose credentials or raw response text'
+        Check ($global:releaseTestPosts[-1].Outcome -eq 'failure' -and $global:releaseTestGets -eq 1) 'Failed read still publishes a failure snapshot without retrying non-transient errors'
+    }
+    $global:releaseTestHttpStatus=$null
     $global:releaseTestBadLink=$true;$global:releaseTestGets=0
     Reject { & $sender -Operation inventory -ConfigPath $cp -Publish -WarningAction SilentlyContinue } 'Untrusted pagination fails inventory job'
     Check ($global:releaseTestGets -eq 1 -and $global:releaseTestPosts[-1].Outcome -eq 'failure') 'Untrusted host never receives request; failure snapshot published'
 } finally {
     foreach($key in $saved.Keys){[Environment]::SetEnvironmentVariable($key,$saved[$key])}
     Remove-Item Function:\az,Function:\Invoke-RestMethod
-    Remove-Variable releaseTestPosts,releaseTestGets,releaseTestBadLink -Scope Global
+    Remove-Variable releaseTestPosts,releaseTestGets,releaseTestBadLink,releaseTestHttpStatus -Scope Global
     # This directory was created above with a random, task-specific name.
     Remove-Item -LiteralPath $temp -Recurse -Force
 }

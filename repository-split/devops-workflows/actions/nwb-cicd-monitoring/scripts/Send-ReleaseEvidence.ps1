@@ -33,8 +33,10 @@ $failed=0
 try {
     foreach($target in $config.Targets) {
         $revisions=@();$outcome='success'
+        $inventoryPhase='target-validation'
         try {
             if($target.ResourceId -notmatch '/providers/Microsoft.App/containerApps/[^/]+$') { throw 'Version inventory currently supports Container Apps only.' }
+            $inventoryPhase='revision-read'
             $resourcePath=$target.ResourceId.TrimEnd('/')+'/revisions'
             $next='https://management.azure.com'+$resourcePath+'?api-version=2025-01-01'
             $visited=[System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
@@ -47,11 +49,36 @@ try {
                 $next=$null
                 if($response.PSObject.Properties['nextLink']) {$next=$response.nextLink}
             }
+            $inventoryPhase='snapshot-conversion'
             $record=ConvertTo-VersionRecord $target $revisions $context
         } catch {
             # A failure supersedes the last good snapshot, rather than displaying stale state as current.
             $outcome='failure';$failed++
-            Write-Warning "Inventory read failed for configured target $($target.Service)/$($target.Environment). Check Reader access, resource ID and network."
+            # Only expose the transport's numeric status or known local validation messages.
+            # Never print arbitrary exception text, Azure response bodies or credentials.
+            $failureDetail="Failure type: $($_.Exception.GetType().Name). Check the response shape and script at this phase."
+            $failureMessage=$_.Exception.Message
+            if($failureMessage -match '^Request failed \(HTTP ([0-9]+), attempt [0-9]+\)\.') {
+                $httpStatus=[int]$Matches[1]
+                $hint=switch($httpStatus) {
+                    0 {'Check runner DNS, TLS and connectivity to management.azure.com; no HTTP response was available.'}
+                    400 {'Check the configured resource ID and Azure revision API request.'}
+                    401 {'Check the Azure login tenant and management-token audience.'}
+                    403 {'Check Reader access for the workflow Azure identity (AZURE_CLIENT_ID) on this Container App, including its target subscription.'}
+                    404 {'Check the exact Container App resource ID and that the resource still exists.'}
+                    429 {'Azure throttled the revision read after retries; retry later.'}
+                    default {'Check Azure management availability and the target resource; the request failed after the configured retry policy.'}
+                }
+                $failureDetail="Azure management request failed (HTTP $httpStatus). $hint"
+            } elseif($failureMessage -in @(
+                'Version inventory currently supports Container Apps only.',
+                'Invalid or incomplete Azure revision pagination.',
+                'Revision response has no value array.',
+                'Revision response is missing a boolean active state.'
+            )) {
+                $failureDetail=$failureMessage
+            }
+            Write-Warning "Inventory read failed for configured target $($target.Service)/$($target.Environment). Phase=$inventoryPhase. $failureDetail"
             $record=ConvertTo-VersionRecord $target @() $context -Outcome $outcome
         }
         if($Publish) {Send-NwbRecords -Records @($record) -DcrId $env:AZURE_RELEASE_DCR_IMMUTABLE_ID -Table NWBVersionInventory_CL}
