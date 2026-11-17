@@ -156,3 +156,15 @@ NWBCollectorHealth_CL
 
 
 /subscriptions/18af3db6-624c-4522-9319-35501eb3fac0/resourceGroups/prd-cicdobservability-rg-eus2/providers/Microsoft.Insights/dataCollectionEndpoints/prd-cicdobservability-dce-eus2
+
+
+Open Azure Portal → Container Apps → doc-extraction-backend.
+Confirm the subscription is NWPREPROD-SUB.
+Open Access control (IAM) → Role assignments.
+Check whether this identity already has Reader or equivalent read access, directly or inherited. If it does, please confirm that rather than adding a duplicate.
+If access is missing, select Add → Add role assignment.
+Search for and select Reader, then click Next.
+Under Assign access to, select Managed identity → Select members.
+Find the existing collector identity and verify its Client ID matches the value above. If necessary, change the identity picker’s subscription filter to the subscription containing that identity.
+Select the identity, then complete Review + assign.
+Confirm the assignment appears on the Container App.
